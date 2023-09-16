@@ -1,0 +1,18 @@
+[package]
+name = "serial-monitor-gui"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dioxus = "0.4.0"
+fermi = { git = "https://github.com/dioxuslabs/dioxus" }
+dioxus-desktop = "0.4.0"
+dioxus-web = "0.4.0"
+log = "0.4.20"
+rdev = "0.5.3"
+serialport = "4.2.2"
+tokio = { version = "1.32.0", features = ["full"] }
+
