@@ -24,7 +24,7 @@ pub fn App(cx: Scope) -> Element {
                 crossorigin: "anonymous"
             }
             div {
-                class: "vh-100 container-fluid d-flex flex-column overflow-hidden",
+                class: "vh-100 container-fluid d-flex flex-column",
                 div {
                     class: "row mt-2 g-2",
                     div {
@@ -67,10 +67,11 @@ pub fn App(cx: Scope) -> Element {
 
 fn menu_entry(cx: Scope) -> Element {
     let available = use_state(cx, || Vec::<String>::new());
-    let _ = use_coroutine(cx, |_: UnboundedReceiver<()>| {
+    let _ = use_future(cx, (), |_| {
         let available = available.to_owned();
         async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
+            println!("started_service");
             loop {
                 interval.tick().await;
                 available.set(
@@ -203,15 +204,6 @@ fn baud_box(cx: Scope) -> Element {
             step: "100",
             placeholder: "baud rate",
             oninput: |event| inp.set(event.value.clone()),
-        }
-    }
-}
-
-fn green_circle(cx: Scope) -> Element {
-    render! {
-        div {
-            class: "bg-gradient bg-primary h-75 rounded-circle",
-            style: "aspect-ratio: 1 / 1;",
         }
     }
 }
