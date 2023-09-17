@@ -124,6 +124,13 @@ impl AppState {
         }
     }
 
+    pub fn is_connected(&self) -> bool {
+        match self.handle {
+            None => false,
+            Some(ref handle) => handle.lock().unwrap().is_connected()
+        }
+    }
+
     pub fn get_input_text(&self) -> Inner<String> {
         Inner(self.input_text.lock().unwrap())
     }

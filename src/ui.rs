@@ -1,10 +1,9 @@
 use crate::{api, ports};
+use api::AppState;
 use dioxus::{
     html::input_data::keyboard_types::{Key, Modifiers},
     prelude::*,
 };
-use api::AppState;
-
 
 pub fn App(cx: Scope) -> Element {
     let app_state = use_ref(cx, || AppState::new());
@@ -38,7 +37,7 @@ pub fn App(cx: Scope) -> Element {
                     }
                     div {
                         class: "col-2 col-sm-1 d-flex justify-content-center align-items-center",
-                        ConnectingSpinner {}
+                        ConnectedIndicator {app_state: app_state}
                     },
                 }
                 div {
@@ -109,22 +108,23 @@ fn menu_entry(cx: Scope) -> Element {
 fn Console<'a>(cx: Scope<'a>, id: usize, app_state: &'a UseRef<AppState>) -> Element {
     let element_id = format!("console_{id}");
     let eval = use_eval(cx).clone();
-    let script = format!(r#"
+    let script = format!(
+        r#"
         var elements = document.querySelectorAll("[id='{element_id}']");
         for (var i = 0; i < elements.length; ++i) {{
             elements[i].scrollTop = elements[i].scrollHeight;
         }}
         // element.scrollTop = element.scrollHeight;
-        "#);
+        "#
+    );
     cx.push_future(async move {
-        eval(script.as_ref())
-        .unwrap();
+        eval(script.as_ref()).unwrap();
     });
     let second_handle = app_state.to_owned();
     let app_state = app_state.read();
     let content = match id {
         0 => app_state.get_input_text(),
-        _ => app_state.get_output_text()
+        _ => app_state.get_output_text(),
     };
     let content = &*content;
 
@@ -147,7 +147,7 @@ fn Console<'a>(cx: Scope<'a>, id: usize, app_state: &'a UseRef<AppState>) -> Ele
                 onclick: move |_| {
                     match id {
                         0 => second_handle.write().clear_input(),
-                        _ => second_handle.write().clear_output()                    
+                        _ => second_handle.write().clear_output()
                     }
                 },
                 "Clear"
@@ -159,7 +159,7 @@ fn Console<'a>(cx: Scope<'a>, id: usize, app_state: &'a UseRef<AppState>) -> Ele
 #[inline_props]
 fn input_box<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
     let inp = use_state(cx, || String::new());
-render! {
+    render! {
         div {
             class: "input-group",
             input {
@@ -212,6 +212,22 @@ fn green_circle(cx: Scope) -> Element {
         div {
             class: "bg-gradient bg-primary h-75 rounded-circle",
             style: "aspect-ratio: 1 / 1;",
+        }
+    }
+}
+
+#[inline_props]
+fn ConnectedIndicator<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
+    let is_connected = app_state.read().is_connected();
+    render! {
+        if is_connected {
+            rsx! {
+                ConnectedSpinner {}
+            }
+        } else {
+            rsx! {
+                ConnectingSpinner {}
+            }
         }
     }
 }
