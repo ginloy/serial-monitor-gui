@@ -29,7 +29,7 @@ pub fn App(cx: Scope) -> Element {
                     class: "row mt-2 g-2",
                     div {
                         class: "col-12 col-sm-8",
-                        menu_entry {}
+                        menu_entry { app_state: app_state }
                     }
                     div {
                         class: "col-10 col-sm-3",
@@ -65,7 +65,8 @@ pub fn App(cx: Scope) -> Element {
     }
 }
 
-fn menu_entry(cx: Scope) -> Element {
+#[inline_props]
+fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
     let available = use_state(cx, || Vec::<String>::new());
     let _ = use_future(cx, (), |_| {
         let available = available.to_owned();
