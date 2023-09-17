@@ -1,13 +1,13 @@
-use crate::{ports, api};
+use crate::{api, ports};
 use dioxus::{
     html::input_data::keyboard_types::{Key, Modifiers},
     prelude::*,
 };
-use fermi::*;
+use api::AppState;
 
-static APPSTATE: Atom<api::AppState> = Atom(|_| api::AppState::new());
 
 pub fn App(cx: Scope) -> Element {
+    let app_state = use_ref(cx, || AppState::new());
     render! {
         head {
             link {
@@ -47,18 +47,18 @@ pub fn App(cx: Scope) -> Element {
                     min_height: "1rem",
                     div {
                         class: "col-12 col-md-6",
-                        Console {}
+                        Console { id: 0, app_state: app_state }
                     }
                     div {
                         class: "col-12 col-md-6",
-                        Console {}
+                        Console { id: 2,  app_state: app_state}
                     }
                 }
                 div {
                     class: "row pb-2 mt-2",
                     div {
                         class: "col-md",
-                        input_box {}
+                        input_box { app_state: app_state }
                     },
                 }
             }
@@ -105,50 +105,61 @@ fn menu_entry(cx: Scope) -> Element {
     }
 }
 
-fn Console(cx: Scope) -> Element {
-    let create_eval = use_eval(cx);
-    let eval = create_eval(
-        r#"
-        await dioxus.recv();
-        var elements = document.querySelectorAll("[id='console']");
-        for (var i = 0; i < elements.length; ++i) {
+#[inline_props]
+fn Console<'a>(cx: Scope<'a>, id: usize, app_state: &'a UseRef<AppState>) -> Element {
+    let element_id = format!("console_{id}");
+    let eval = use_eval(cx).clone();
+    let script = format!(r#"
+        var elements = document.querySelectorAll("[id='{element_id}']");
+        for (var i = 0; i < elements.length; ++i) {{
             elements[i].scrollTop = elements[i].scrollHeight;
-        }
+        }}
         // element.scrollTop = element.scrollHeight;
-        "#,
-    )
-    .unwrap();
-
-    eval.send("scroll".into()).unwrap();
+        "#);
+    cx.push_future(async move {
+        eval(script.as_ref())
+        .unwrap();
+    });
+    let second_handle = app_state.to_owned();
+    let app_state = app_state.read();
+    let content = match id {
+        0 => app_state.get_input_text(),
+        _ => app_state.get_output_text()
+    };
+    let content = &*content;
 
     render! {
         div {
             class: "h-100 position-relative",
             textarea {
-                id: "console",
+                id: "{element_id}",
                 class: "form-control bg-secondary w-100 h-100",
                 font_size: "0.875rem",
                 readonly: true,
                 resize: "none",
-                (0..1000).map(|i| {
-                    eval.send("test".into()).unwrap();
-                    format!("The quick brown fox jumped over the lazy dog {i}\n")
-                }).collect::<String>()
+                "{content}"
             }
             button {
                 class: "btn btn-danger position-absolute bg-gradient",
                 font_size: "0.9rem",
                 top: "10px",
                 right: "10px",
+                onclick: move |_| {
+                    match id {
+                        0 => second_handle.write().clear_input(),
+                        _ => second_handle.write().clear_output()                    
+                    }
+                },
                 "Clear"
             }
         }
     }
 }
 
-fn input_box(cx: Scope) -> Element {
+#[inline_props]
+fn input_box<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
     let inp = use_state(cx, || String::new());
-    render! {
+render! {
         div {
             class: "input-group",
             input {
@@ -156,21 +167,21 @@ fn input_box(cx: Scope) -> Element {
                 class: "form-control bg-gradient",
                 spellcheck: "false",
                 oninput: move |event| {
-                   inp.set(event.value.clone()); 
+                   inp.set(event.value.clone());
                 },
                 onkeypress: move |event| {
                     // println!("{:?}", event);
                     if !inp.is_empty() && !event.modifiers().contains(Modifiers::SHIFT) && event.key() == Key::Enter {
-                        println!("{}", inp);
+                        app_state.write().append_input(format!("{inp}\n").as_str());
                         inp.set(String::new());
-                    } 
+                    }
                 }
             }
             button {
                 class: "btn btn-primary bg-gradient",
                 onclick: move |_| {
                     if !inp.is_empty() {
-                        println!("{}", inp);
+                        app_state.write().append_input(format!("{inp}\n").as_str());
                         inp.set(String::new());
                     }
                 },
@@ -186,7 +197,7 @@ fn baud_box(cx: Scope) -> Element {
         input {
             value: "{inp}",
             class: "form-control bg-secondary",
-            "type": "number",
+            r#type: "number",
             min: "0",
             max: "200000",
             step: "100",

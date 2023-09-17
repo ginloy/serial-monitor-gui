@@ -1,7 +1,7 @@
 use std::{
     collections::VecDeque,
     io,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard}, ops::Deref,
 };
 
 use dioxus::prelude::*;
@@ -16,7 +16,7 @@ static SCAN_FREQ: tokio::time::Duration = tokio::time::Duration::from_millis(20)
 pub async fn scan_ports(buffer: Arc<Mutex<Vec<(String, UsbPortInfo)>>>) {
     let mut interval = tokio::time::interval(SCAN_FREQ);
     loop {
-        interval.tick();
+        interval.tick().await;
         let mut buffer = buffer.lock().unwrap();
         ports::get_available_usb().into_iter().for_each(|elem| buffer.push(elem));
     }
@@ -85,7 +85,8 @@ impl Connection {
 pub struct AppState {
     available_ports: Arc<Mutex<Vec<(String, UsbPortInfo)>>>,
     handle: Option<Arc<Mutex<Connection>>>,
-    console_buffer: Arc<Mutex<String>>,
+    input_text: Arc<Mutex<String>>,
+    output_text: Arc<Mutex<String>>
 }
 
 impl AppState {
@@ -93,7 +94,8 @@ impl AppState {
         Self {
             available_ports: Arc::new(Mutex::new(Vec::new())),
             handle: None,
-            console_buffer: Arc::new(Mutex::new(String::new())),
+            input_text: Arc::new(Mutex::new(String::new())),
+            output_text: Arc::new(Mutex::new(String::new()))
         }
     }
 
@@ -121,6 +123,26 @@ impl AppState {
             handle.lock().unwrap().close();
         }
     }
+
+    pub fn get_input_text(&self) -> Inner<String> {
+        Inner(self.input_text.lock().unwrap())
+    }
+
+    pub fn get_output_text(&self) -> Inner<String> {
+        Inner(self.output_text.lock().unwrap())
+    }
+
+    pub fn append_input(&mut self, string: &str) {
+        self.input_text.lock().unwrap().push_str(string);
+    }
+
+    pub fn clear_output(&mut self) {
+        self.output_text.lock().unwrap().clear();
+    }
+
+    pub fn clear_input(&mut self) {
+        self.input_text.lock().unwrap().clear();
+    }
 }
 
 pub enum Action {
@@ -131,3 +153,12 @@ pub enum Action {
 pub async fn start_service(mut rx: UnboundedReceiver<Action>, atoms: AtomRoot) {
     
 }
+
+pub struct Inner<'a, T>(MutexGuard<'a, T>);
+
+impl<'a, T> Deref for Inner<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+} 
