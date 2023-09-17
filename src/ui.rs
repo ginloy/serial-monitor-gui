@@ -208,7 +208,7 @@ fn green_circle(cx: Scope) -> Element {
 fn ConnectingSpinner(cx: Scope) -> Element {
     render! {
         div {
-            class: "spinner-grow text-danger bg-gradient",
+            class: "spinner-border text-primary",
             role: "status",
         }
     }

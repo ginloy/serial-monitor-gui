@@ -2539,6 +2539,7 @@ dependencies = [
  "fermi",
  "log",
  "rdev",
+ "rfd",
  "serialport",
  "tokio",
 ]
