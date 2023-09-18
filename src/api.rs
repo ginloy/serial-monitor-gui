@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 use fermi::*;
 use log::{error, info, warn};
 use serialport::{SerialPort, UsbPortInfo};
-use tokio::task::{JoinHandle, yield_now};
+use tokio::task::{yield_now, JoinHandle};
 
 use crate::ports;
 
@@ -38,7 +38,7 @@ impl Connection {
                 is_connected: true,
             }),
             Err(e) => {
-                println!("{:?}", e);
+                error!("{:?}", e);
                 None
             }
         }
@@ -104,18 +104,16 @@ impl AppState {
         res
     }
 
-    pub async fn connect(&mut self, port: &str, baud_rate: u32) {
-            println!("test");
+    pub fn connect(&mut self, port: &str, baud_rate: u32) -> Result<(), ()> {
         let mut handle = self.handle.lock().unwrap();
         *handle = None;
-        let mut interval = tokio::time::interval(SCAN_FREQ);
-        *handle = loop {
-            match Connection::open(port, baud_rate) {
-                Some(port) => break Some(port),
-                None => (),
+        match Connection::open(port, baud_rate) {
+            Some(port) => {
+                *handle = Some(port);
+                Ok(())
             }
-            interval.tick().await;
-        };
+            None => Err(()),
+        }
     }
 
     pub fn disconnect(&mut self) {
@@ -154,7 +152,7 @@ impl AppState {
     }
 
     fn start_scan_available(&self) {
-        println!("start port scan");
+        info!("Started port scan");
         let port_list = self.available_ports.clone();
         std::thread::spawn(move || loop {
             *port_list.lock().unwrap() = ports::get_available_usb();
@@ -169,7 +167,6 @@ impl AppState {
             yield_now().await
         }
     }
-
 }
 
 pub enum Action {}

@@ -4,6 +4,7 @@ use dioxus::{
     html::input_data::keyboard_types::{Key, Modifiers},
     prelude::*,
 };
+use log::{info,error};
 
 pub fn App(cx: Scope) -> Element {
     let app_state = use_ref(cx, || AppState::new());
@@ -85,18 +86,23 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
     let connect = {
         let app_state = app_state.to_owned();
         move |e: Event<FormData>| {
-            println!("{:?}",e);
             if e.value == "none" {
                 app_state.with_mut(|x| x.disconnect());
                 return;
             }
             cx.spawn({
                 let app_state = app_state.to_owned();
+                let mut interval = tokio::time::interval(api::SCAN_FREQ);
                 async move {
-                    {
-                    app_state.write().connect(&e.value, 9600).await;
+                    interval.tick().await;
+                    loop {
+                        match app_state.write().connect(&e.value, 9600) {
+                            Ok(_) => break,
+                            Err(_) => {
+                            }
+                        }
                     }
-                    println!("connected");
+                    info!("Connected to {}", e.value);
                 }
             });
         }
@@ -111,7 +117,7 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
                 rsx! { option { value: "none" ,"Select port" } }
             }
             available.iter().map(|(x, inf)| rsx!{ option {
-                value: "{x}", 
+                value: "{x}",
                 format!("{}\t|\t{}\t|\t{}", x, inf.manufacturer.clone().unwrap_or(String::new()), inf.product.clone().unwrap_or(String::new()))
             }})
         }
