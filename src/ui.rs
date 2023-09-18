@@ -67,41 +67,53 @@ pub fn App(cx: Scope) -> Element {
 
 #[inline_props]
 fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
-    let available = use_state(cx, || Vec::<String>::new());
+    // let app_state_read = app_state.write();
+    let available = app_state.with(|x| x.get_available_ports().clone());
+    let refresh_handle = use_ref(cx, || 0);
     let _ = use_future(cx, (), |_| {
-        let available = available.to_owned();
+        let refresh_handle = refresh_handle.to_owned();
         async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
-            println!("started_service");
+            let mut interval = tokio::time::interval(api::SCAN_FREQ);
             loop {
                 interval.tick().await;
-                available.set(
-                    ports::get_available_usb()
-                        .into_iter()
-                        .map(|(x, info)| {
-                            format!(
-                                "{}\t|\t{}\t|\t{}",
-                                x,
-                                info.manufacturer.unwrap_or(String::new()),
-                                info.product.unwrap_or(String::new())
-                            )
-                        })
-                        .collect(),
-                );
+                refresh_handle.needs_update();
             }
         }
     });
+
+    let connect_handle: &UseState<Option<TaskId>> = use_state(cx, || None);
+    let connect = {
+        let app_state = app_state.to_owned();
+        move |e: Event<FormData>| {
+            println!("{:?}",e);
+            if e.value == "none" {
+                app_state.with_mut(|x| x.disconnect());
+                return;
+            }
+            cx.spawn({
+                let app_state = app_state.to_owned();
+                async move {
+                    {
+                    app_state.write().connect(&e.value, 9600).await;
+                    }
+                    println!("connected");
+                }
+            });
+        }
+    };
     render! {
         select {
             class: "form-select bg-secondary",
-            onchange: |evt| println!("{:?}", evt),
+            onchange: connect, //|evt| println!("{:?}", evt),
             if available.is_empty() {
-                rsx! { option { value: -1, "No ports detected" } }
+                rsx! { option { value: "none", "No ports detected" } }
             } else {
-                rsx! { option { value: -1, "Select port" } }
+                rsx! { option { value: "none" ,"Select port" } }
             }
-            available.iter().map(|x| rsx!{option {value: "{x}", "{x}"} })
-
+            available.iter().map(|(x, inf)| rsx!{ option {
+                value: "{x}", 
+                format!("{}\t|\t{}\t|\t{}", x, inf.manufacturer.clone().unwrap_or(String::new()), inf.product.clone().unwrap_or(String::new()))
+            }})
         }
     }
 }
@@ -148,8 +160,8 @@ fn Console<'a>(cx: Scope<'a>, id: usize, app_state: &'a UseRef<AppState>) -> Ele
                 right: "10px",
                 onclick: move |_| {
                     match id {
-                        0 => second_handle.write().clear_input(),
-                        _ => second_handle.write().clear_output()
+                        0 => second_handle.with_mut(|x| x.clear_input()),
+                        _ => second_handle.with_mut(|x| x.clear_output())
                     }
                 },
                 "Clear"
@@ -174,7 +186,7 @@ fn input_box<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
                 onkeypress: move |event| {
                     // println!("{:?}", event);
                     if !inp.is_empty() && !event.modifiers().contains(Modifiers::SHIFT) && event.key() == Key::Enter {
-                        app_state.write().append_input(format!("{inp}\n").as_str());
+                        app_state.with_mut(|x| x.append_input(format!("{inp}\n").as_str()));
                         inp.set(String::new());
                     }
                 }
@@ -183,7 +195,7 @@ fn input_box<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
                 class: "btn btn-primary bg-gradient",
                 onclick: move |_| {
                     if !inp.is_empty() {
-                        app_state.write().append_input(format!("{inp}\n").as_str());
+                        app_state.with_mut(|x| x.append_input(format!("{inp}\n").as_str()));
                         inp.set(String::new());
                     }
                 },
@@ -211,7 +223,18 @@ fn baud_box(cx: Scope) -> Element {
 
 #[inline_props]
 fn ConnectedIndicator<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
-    let is_connected = app_state.read().is_connected();
+    let is_connected = app_state.with(|x| x.is_connected());
+    let refresh_handle = use_ref(cx, || 0);
+    let _ = use_future(cx, (), |_| {
+        let refresh_handle = refresh_handle.to_owned();
+        async move {
+            let mut interval = tokio::time::interval(api::SCAN_FREQ);
+            loop {
+                interval.tick().await;
+                refresh_handle.needs_update();
+            }
+        }
+    });
     render! {
         if is_connected {
             rsx! {

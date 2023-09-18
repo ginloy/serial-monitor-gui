@@ -1,24 +1,27 @@
 use std::{
-    collections::VecDeque,
     io,
-    sync::{Arc, Mutex, MutexGuard}, ops::Deref,
+    ops::Deref,
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use dioxus::prelude::*;
 use fermi::*;
 use log::{error, info, warn};
 use serialport::{SerialPort, UsbPortInfo};
+use tokio::task::{JoinHandle, yield_now};
 
 use crate::ports;
 
-static SCAN_FREQ: tokio::time::Duration = tokio::time::Duration::from_millis(20);
+pub static SCAN_FREQ: tokio::time::Duration = tokio::time::Duration::from_millis(20);
 
 pub async fn scan_ports(buffer: Arc<Mutex<Vec<(String, UsbPortInfo)>>>) {
     let mut interval = tokio::time::interval(SCAN_FREQ);
     loop {
         interval.tick().await;
         let mut buffer = buffer.lock().unwrap();
-        ports::get_available_usb().into_iter().for_each(|elem| buffer.push(elem));
+        ports::get_available_usb()
+            .into_iter()
+            .for_each(|elem| buffer.push(elem));
     }
 }
 
@@ -35,7 +38,7 @@ impl Connection {
                 is_connected: true,
             }),
             Err(e) => {
-                error!("{:?}", e);
+                println!("{:?}", e);
                 None
             }
         }
@@ -75,7 +78,7 @@ impl Connection {
 
     async fn scan(&mut self, buffer: Arc<Mutex<String>>) {
         let mut interval = tokio::time::interval(SCAN_FREQ);
-        while self.is_connected(){
+        while self.is_connected() {
             interval.tick().await;
             buffer.lock().unwrap().push_str(&self.read());
         }
@@ -84,51 +87,50 @@ impl Connection {
 
 pub struct AppState {
     available_ports: Arc<Mutex<Vec<(String, UsbPortInfo)>>>,
-    handle: Option<Arc<Mutex<Connection>>>,
+    handle: Arc<Mutex<Option<Connection>>>,
     input_text: Arc<Mutex<String>>,
-    output_text: Arc<Mutex<String>>
+    output_text: Arc<Mutex<String>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        Self {
+        let res = Self {
             available_ports: Arc::new(Mutex::new(Vec::new())),
-            handle: None,
+            handle: Arc::new(Mutex::new(None)),
             input_text: Arc::new(Mutex::new(String::new())),
-            output_text: Arc::new(Mutex::new(String::new()))
-        }
-    }
-
-    async fn connect(&mut self, port: &str, baud_rate: u32) {
-        if let Some(ref handle) = self.handle {
-            handle.lock().unwrap().close();
-        }
-        self.handle = loop {
-            match Connection::open(port, baud_rate) {
-                Some(port) => break Some(Arc::new(Mutex::new(port))),
-                None => ()
-            }
+            output_text: Arc::new(Mutex::new(String::new())),
         };
-        let handle = self.handle.clone();
-        // tokio::spawn(async move {
-        //     let mut interval = tokio::time::interval(SCAN_FREQ);
-        //     loop {
-        //         interval.tick().await;
-        //     }
-        // })
+        res.start_scan_available();
+        res
     }
 
-    fn disconnect(&mut self) {
-        if let Some(ref handle) = self.handle {
-            handle.lock().unwrap().close();
-        }
+    pub async fn connect(&mut self, port: &str, baud_rate: u32) {
+            println!("test");
+        let mut handle = self.handle.lock().unwrap();
+        *handle = None;
+        let mut interval = tokio::time::interval(SCAN_FREQ);
+        *handle = loop {
+            match Connection::open(port, baud_rate) {
+                Some(port) => break Some(port),
+                None => (),
+            }
+            interval.tick().await;
+        };
+    }
+
+    pub fn disconnect(&mut self) {
+        *self.handle.lock().unwrap() = None;
     }
 
     pub fn is_connected(&self) -> bool {
-        match self.handle {
+        match *self.handle.lock().unwrap() {
             None => false,
-            Some(ref handle) => handle.lock().unwrap().is_connected()
+            Some(ref handle) => handle.is_connected(),
         }
+    }
+
+    pub fn get_available_ports(&self) -> Inner<Vec<(String, UsbPortInfo)>> {
+        Inner(self.available_ports.lock().unwrap())
     }
 
     pub fn get_input_text(&self) -> Inner<String> {
@@ -150,16 +152,29 @@ impl AppState {
     pub fn clear_input(&mut self) {
         self.input_text.lock().unwrap().clear();
     }
+
+    fn start_scan_available(&self) {
+        println!("start port scan");
+        let port_list = self.available_ports.clone();
+        std::thread::spawn(move || loop {
+            *port_list.lock().unwrap() = ports::get_available_usb();
+            std::thread::sleep(SCAN_FREQ);
+        });
+    }
+
+    pub async fn start_service(&mut self, rx: UnboundedReceiver<Action>) {
+        let (read_tx, read_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        let (write_tx, write_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        loop {
+            yield_now().await
+        }
+    }
+
 }
 
-pub enum Action {
+pub enum Action {}
 
-}
-
-
-pub async fn start_service(mut rx: UnboundedReceiver<Action>, atoms: AtomRoot) {
-    
-}
+pub async fn start_service(mut rx: UnboundedReceiver<Action>, atoms: AtomRoot) {}
 
 pub struct Inner<'a, T>(MutexGuard<'a, T>);
 
@@ -168,4 +183,4 @@ impl<'a, T> Deref for Inner<'a, T> {
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
-} 
+}
