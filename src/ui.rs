@@ -92,17 +92,23 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
             }
             cx.spawn({
                 let app_state = app_state.to_owned();
-                let mut interval = tokio::time::interval(api::SCAN_FREQ);
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(5000));
+                let evt = e.clone();
                 async move {
-                    interval.tick().await;
-                    loop {
-                        match app_state.write().connect(&e.value, 9600) {
+                    let future = || async move {
+                        loop {
+                        interval.tick().await;
+                       match app_state.write().connect(&evt.value, 9600) {
                             Ok(_) => break,
                             Err(_) => {
                             }
                         }
-                    }
+                    }};
+                    if let Err(_) = tokio::time::timeout(tokio::time::Duration::from_millis(10000), future()).await {
+                        error!("Attempt to connect to {} time out", e.value);
+                    } else {
                     info!("Connected to {}", e.value);
+                    }
                 }
             });
         }

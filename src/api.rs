@@ -112,7 +112,12 @@ impl AppState {
                 *handle = Some(port);
                 Ok(())
             }
-            None => Err(()),
+            None => {
+                if let Some(ref mut handle) = *handle {
+                    handle.close();
+                }
+                Err(())
+            }    
         }
     }
 
@@ -155,8 +160,8 @@ impl AppState {
         info!("Started port scan");
         let port_list = self.available_ports.clone();
         std::thread::spawn(move || loop {
-            *port_list.lock().unwrap() = ports::get_available_usb();
             std::thread::sleep(SCAN_FREQ);
+            *port_list.lock().unwrap() = ports::get_available_usb();
         });
     }
 
