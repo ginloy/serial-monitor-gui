@@ -1,11 +1,15 @@
+
 use crate::{api, ports};
 use api::AppState;
 use dioxus::{
     html::input_data::keyboard_types::{Key, Modifiers},
     prelude::*,
 };
-use log::{info,error};
-use tokio::time::{self, timeout, Duration};
+use log::{error, info};
+use tokio::{
+    sync::watch,
+    time::{self, timeout, Duration}, task::yield_now,
+};
 
 pub fn App(cx: Scope) -> Element {
     let app_state = use_ref(cx, || AppState::new());
@@ -83,35 +87,38 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
         }
     });
 
-    let connect_handle: &UseState<Option<TaskId>> = use_state(cx, || None);
+    let prev: &UseState<Option<TaskId>> = use_state(cx,|| None);
     let connect = {
         let app_state = app_state.to_owned();
+        let prev = prev.to_owned();
         move |e: Event<FormData>| {
+            if let Some(id) = *prev {
+                info!("Cancelled future {:?}", id);
+                cx.remove_future(id);
+            }
             if e.value == "none" {
                 app_state.with_mut(|x| x.disconnect());
                 return;
             }
-            cx.spawn({
+            let next = cx.push_future({
                 let app_state = app_state.to_owned();
                 let mut interval = time::interval(Duration::from_millis(5000));
                 let evt = e.clone();
                 async move {
-                    let future = || async move {
+                    // let future = || async move {
                         loop {
-                        interval.tick().await;
-                       match app_state.write().connect(&evt.value, 9600) {
-                            Ok(_) => break,
-                            Err(_) => {
+                            interval.tick().await;
+                            match app_state.write().connect(&evt.value, 9600) {
+                                Ok(_) => break,
+                                Err(_) => {}
                             }
-                        }
-                    }};
-                    if let Err(_) = timeout(Duration::from_millis(10000), future()).await {
-                        error!("Attempt to connect to {} time out", e.value);
-                    } else {
-                    info!("Connected to {}", e.value);
+                        // }
                     }
+                    info!("Connected to {}", e.value);
                 }
-            });
+            }
+            );
+            prev.set(Some(next));
         }
     };
     render! {
