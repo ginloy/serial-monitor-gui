@@ -8,14 +8,17 @@ use dioxus::prelude::*;
 use fermi::*;
 use log::{error, info, warn};
 use serialport::{SerialPort, UsbPortInfo};
-use tokio::task::{yield_now, JoinHandle};
+use tokio::{
+    task::{yield_now, JoinHandle},
+    time::{interval, Duration},
+};
 
 use crate::ports;
 
-pub static SCAN_FREQ: tokio::time::Duration = tokio::time::Duration::from_millis(20);
+pub static SCAN_FREQ: Duration = Duration::from_millis(20);
 
 pub async fn scan_ports(buffer: Arc<Mutex<Vec<(String, UsbPortInfo)>>>) {
-    let mut interval = tokio::time::interval(SCAN_FREQ);
+    let mut interval = interval(SCAN_FREQ);
     loop {
         interval.tick().await;
         let mut buffer = buffer.lock().unwrap();
@@ -77,7 +80,7 @@ impl Connection {
     }
 
     async fn scan(&mut self, buffer: Arc<Mutex<String>>) {
-        let mut interval = tokio::time::interval(SCAN_FREQ);
+        let mut interval = interval(SCAN_FREQ);
         while self.is_connected() {
             interval.tick().await;
             buffer.lock().unwrap().push_str(&self.read());
@@ -117,7 +120,7 @@ impl AppState {
                     handle.close();
                 }
                 Err(())
-            }    
+            }
         }
     }
 

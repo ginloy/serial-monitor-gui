@@ -5,6 +5,7 @@ use dioxus::{
     prelude::*,
 };
 use log::{info,error};
+use tokio::time::{self, timeout, Duration};
 
 pub fn App(cx: Scope) -> Element {
     let app_state = use_ref(cx, || AppState::new());
@@ -74,7 +75,7 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
     let _ = use_future(cx, (), |_| {
         let refresh_handle = refresh_handle.to_owned();
         async move {
-            let mut interval = tokio::time::interval(api::SCAN_FREQ);
+            let mut interval = time::interval(api::SCAN_FREQ);
             loop {
                 interval.tick().await;
                 refresh_handle.needs_update();
@@ -92,7 +93,7 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
             }
             cx.spawn({
                 let app_state = app_state.to_owned();
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(5000));
+                let mut interval = time::interval(Duration::from_millis(5000));
                 let evt = e.clone();
                 async move {
                     let future = || async move {
@@ -104,7 +105,7 @@ fn menu_entry<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element {
                             }
                         }
                     }};
-                    if let Err(_) = tokio::time::timeout(tokio::time::Duration::from_millis(10000), future()).await {
+                    if let Err(_) = timeout(Duration::from_millis(10000), future()).await {
                         error!("Attempt to connect to {} time out", e.value);
                     } else {
                     info!("Connected to {}", e.value);
@@ -240,7 +241,7 @@ fn ConnectedIndicator<'a>(cx: Scope, app_state: &'a UseRef<AppState>) -> Element
     let _ = use_future(cx, (), |_| {
         let refresh_handle = refresh_handle.to_owned();
         async move {
-            let mut interval = tokio::time::interval(api::SCAN_FREQ);
+            let mut interval = time::interval(api::SCAN_FREQ);
             loop {
                 interval.tick().await;
                 refresh_handle.needs_update();
