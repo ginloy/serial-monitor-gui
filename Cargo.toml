@@ -12,7 +12,7 @@ fermi = { git = "https://github.com/dioxuslabs/dioxus" }
 dioxus-desktop = "0.4.0"
 log = "0.4.20"
 rdev = "0.5.3"
-serialport = "4.2.2"
+serialport = { git = "https://github.com/LukaOber/serialport-rs.git" }
 tokio = { version = "1.32.0", features = ["full"] }
 rfd = "0.11.3"
 env_logger = "0.10.0"
