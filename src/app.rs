@@ -16,7 +16,8 @@ pub fn App(cx: Scope) -> Element {
         to_owned!(available_ports);
         async move {
             api::scan_ports(available_ports.clone()).await;
-    }});
+        }
+    });
     render! {
         head {
             link {

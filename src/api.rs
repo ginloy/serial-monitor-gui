@@ -1,9 +1,10 @@
-use std::io;
-
 use dioxus::prelude::*;
 use log::*;
-use tokio_serial::{SerialPort, UsbPortInfo, SerialStream};
-use tokio::{time::{interval, Duration}, io::{AsyncWriteExt, AsyncReadExt}};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    time::{interval, Duration},
+};
+use tokio_serial::{SerialPort, SerialStream, UsbPortInfo};
 
 use crate::ports;
 
@@ -107,7 +108,7 @@ impl Connection {
     }
 
     pub async fn read(&mut self) -> String {
-        let mut buf = [0u8;64];
+        let mut buf = [0u8; 64];
         match self.handle {
             None => {
                 warn!("Attempted to read from unconnected port");

@@ -1,5 +1,4 @@
-use tokio_serial::{self, SerialPortBuilderExt, SerialStream};
-use tokio_serial::{Result, SerialPortType, UsbPortInfo};
+use tokio_serial::{self, Result, SerialPortBuilderExt, SerialPortType, SerialStream, UsbPortInfo};
 
 pub fn get_available_usb() -> Vec<(String, UsbPortInfo)> {
     let mut res = Vec::new();
