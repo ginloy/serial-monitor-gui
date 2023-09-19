@@ -1,7 +1,7 @@
 use std::io;
 
 use dioxus::prelude::*;
-use log::{error, warn};
+use log::*;
 use serialport::{SerialPort, UsbPortInfo};
 use tokio::time::{interval, Duration};
 
@@ -21,6 +21,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
     let mut interval = interval(SCAN_FREQ);
     while connection.with(|c| c.is_connected()) {
         interval.tick().await;
+        info!("Reading from {:?}", connection.read().handle);
         let data = connection.with_mut(|c| c.read());
         if !data.is_empty() {
             buffer.with_mut(|b| b.push_str(&data));
@@ -106,27 +107,21 @@ impl Connection {
     }
 
     pub fn read(&mut self) -> String {
-        let mut buf = String::new();
-        let res = match self.handle {
+        let mut buf = [0u8;64];
+        match self.handle {
             None => {
                 warn!("Attempted to read from unconnected port");
-                Some(buf)
-            }
-            Some(ref mut handle) => match handle.read_to_string(&mut buf) {
-                Ok(_) => Some(buf),
-                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => Some(buf),
-                Err(e) => {
-                    warn!("{:?}", e);
-                    None
-                }
-            },
-        };
-        match res {
-            None => {
-                self.handle = None;
                 String::new()
             }
-            Some(s) => s,
+            Some(ref mut handle) => match handle.read(&mut buf) {
+                Ok(x) => std::str::from_utf8(&buf[..x]).unwrap().to_string(),
+                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => String::new(),
+                Err(e) => {
+                    warn!("{:?}", e);
+                    self.handle = None;
+                    String::new()
+                }
+            },
         }
     }
 }

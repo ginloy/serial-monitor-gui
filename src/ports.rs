@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serialport::{SerialPort, SerialPortType};
 
 pub fn get_available_usb() -> Vec<(String, serialport::UsbPortInfo)> {
@@ -16,5 +18,5 @@ pub fn get_available_usb() -> Vec<(String, serialport::UsbPortInfo)> {
 }
 
 pub fn connect(port: &str, baud_rate: u32) -> serialport::Result<Box<dyn SerialPort>> {
-    serialport::new(port, baud_rate).open()
+    serialport::new(port, baud_rate).timeout(Duration::from_millis(0)).open()
 }
