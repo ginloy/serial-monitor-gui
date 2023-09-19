@@ -41,6 +41,7 @@ pub async fn connect(connection: UseRef<Connection>, port: &str) {
     }
 }
 
+#[derive(Debug)]
 pub struct Connection {
     handle: Option<Box<dyn SerialPort>>,
     baud_rate: u32,
