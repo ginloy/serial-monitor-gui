@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use log::*;
-use serialport::UsbPortInfo;
+use tokio_serial::UsbPortInfo;
 
 use crate::api::{self, Connection};
 

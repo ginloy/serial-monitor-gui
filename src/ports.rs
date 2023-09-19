@@ -1,10 +1,9 @@
-use std::time::Duration;
+use tokio_serial::{self, SerialPortBuilderExt, SerialStream};
+use tokio_serial::{Result, SerialPortType, UsbPortInfo};
 
-use serialport::{SerialPort, SerialPortType};
-
-pub fn get_available_usb() -> Vec<(String, serialport::UsbPortInfo)> {
+pub fn get_available_usb() -> Vec<(String, UsbPortInfo)> {
     let mut res = Vec::new();
-    match serialport::available_ports() {
+    match tokio_serial::available_ports() {
         Ok(ports) => {
             for p in ports {
                 if let SerialPortType::UsbPort(info) = p.port_type {
@@ -17,7 +16,6 @@ pub fn get_available_usb() -> Vec<(String, serialport::UsbPortInfo)> {
     }
 }
 
-pub fn connect(port: &str, baud_rate: u32) -> serialport::Result<Box<dyn SerialPort>> {
-    serialport::new(port, baud_rate).open()
-    // port.and_then(|p| p.set_timeout(Duration::from_millis(1));)
+pub fn connect(port: &str, baud_rate: u32) -> Result<SerialStream> {
+    tokio_serial::new(port, baud_rate).open_native_async()
 }

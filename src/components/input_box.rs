@@ -9,7 +9,12 @@ pub fn InputBox(cx: Scope, user_buffer: UseRef<String>, connection: UseRef<Conne
     let write = |s: &str| {
         let s = format!("{s}\n");
         user_buffer.with_mut(|b| b.push_str(&s));
-        connection.with_mut(|c| c.write(&s));
+        cx.spawn( {
+            to_owned![connection];
+            async move {
+                connection.write().write(&s).await;
+            }
+        })
     };
 
     render! {

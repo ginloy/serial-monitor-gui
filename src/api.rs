@@ -2,8 +2,8 @@ use std::io;
 
 use dioxus::prelude::*;
 use log::*;
-use serialport::{SerialPort, UsbPortInfo};
-use tokio::time::{interval, Duration};
+use tokio_serial::{SerialPort, UsbPortInfo, SerialStream};
+use tokio::{time::{interval, Duration}, io::{AsyncWriteExt, AsyncReadExt}};
 
 use crate::ports;
 
@@ -22,7 +22,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
     info!("Reading from {:?}", connection.read().handle);
     while connection.with(|c| c.is_connected()) {
         interval.tick().await;
-        let data = connection.with_mut(|c| c.read());
+        let data = connection.write().read().await;
         if !data.is_empty() {
             buffer.with_mut(|b| b.push_str(&data));
         }
@@ -44,7 +44,7 @@ pub async fn connect(connection: UseRef<Connection>, port: &str) {
 
 #[derive(Debug)]
 pub struct Connection {
-    handle: Option<Box<dyn SerialPort>>,
+    handle: Option<SerialStream>,
     baud_rate: u32,
 }
 
@@ -55,7 +55,7 @@ impl Connection {
             baud_rate,
         }
     }
-    pub fn open(&mut self, port: &str) -> serialport::Result<()> {
+    pub fn open(&mut self, port: &str) -> tokio_serial::Result<()> {
         match ports::connect(port, self.baud_rate) {
             Ok(port) => {
                 self.handle = Some(port);
@@ -76,7 +76,7 @@ impl Connection {
         self.baud_rate
     }
 
-    pub fn set_baud_rate(&mut self, rate: u32) -> serialport::Result<()> {
+    pub fn set_baud_rate(&mut self, rate: u32) -> tokio_serial::Result<()> {
         if let Some(ref mut handle) = self.handle {
             handle.set_baud_rate(rate)?;
         }
@@ -88,14 +88,14 @@ impl Connection {
         self.handle.is_some()
     }
 
-    pub fn write(&mut self, data: &str) {
+    pub async fn write(&mut self, data: &str) {
         let data = data.as_bytes();
         let res = match self.handle {
             None => {
                 warn!("Attempted to write to unconnected port");
                 Ok(())
             }
-            Some(ref mut handle) => handle.write_all(data),
+            Some(ref mut handle) => handle.write_all(data).await,
         };
         match res {
             Ok(()) => (),
@@ -106,16 +106,15 @@ impl Connection {
         }
     }
 
-    pub fn read(&mut self) -> String {
+    pub async fn read(&mut self) -> String {
         let mut buf = [0u8;64];
         match self.handle {
             None => {
                 warn!("Attempted to read from unconnected port");
                 String::new()
             }
-            Some(ref mut handle) => match handle.read(&mut buf) {
+            Some(ref mut handle) => match handle.read(&mut buf).await {
                 Ok(x) => std::str::from_utf8(&buf[..x]).unwrap().to_string(),
-                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => String::new(),
                 Err(e) => {
                     warn!("{:?}", e);
                     self.handle = None;
