@@ -23,7 +23,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
     info!("Reading from {:?}", connection.read().handle);
     while connection.with(|c| c.is_connected()) {
         interval.tick().await;
-        let data = connection.write().read().await;
+        let data = connection.write().read();
         if !data.is_empty() {
             buffer.with_mut(|b| b.push_str(&data));
         }
@@ -107,15 +107,16 @@ impl Connection {
         }
     }
 
-    pub async fn read(&mut self) -> String {
+    pub fn read(&mut self) -> String {
         let mut buf = [0u8; 64];
         match self.handle {
             None => {
                 warn!("Attempted to read from unconnected port");
                 String::new()
             }
-            Some(ref mut handle) => match handle.read(&mut buf).await {
+            Some(ref mut handle) => match handle.try_read(&mut buf) {
                 Ok(x) => std::str::from_utf8(&buf[..x]).unwrap().to_string(),
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => String::new(),
                 Err(e) => {
                     warn!("{:?}", e);
                     self.handle = None;
