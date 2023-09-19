@@ -1,191 +1,131 @@
-use std::{
-    io,
-    ops::Deref,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::io;
 
 use dioxus::prelude::*;
-use fermi::*;
-use log::{error, info, warn};
+use log::{error, warn};
 use serialport::{SerialPort, UsbPortInfo};
-use tokio::{
-    task::{yield_now, JoinHandle},
-    time::{interval, Duration},
-};
+use tokio::time::{interval, Duration};
 
 use crate::ports;
 
 pub static SCAN_FREQ: Duration = Duration::from_millis(20);
 
-pub async fn scan_ports(buffer: Arc<Mutex<Vec<(String, UsbPortInfo)>>>) {
+pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
     let mut interval = interval(SCAN_FREQ);
     loop {
         interval.tick().await;
-        let mut buffer = buffer.lock().unwrap();
-        ports::get_available_usb()
-            .into_iter()
-            .for_each(|elem| buffer.push(elem));
+        buffer.set(ports::get_available_usb())
     }
 }
 
-struct Connection {
-    handle: Box<dyn SerialPort>,
-    is_connected: bool,
+pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
+    let mut interval = interval(SCAN_FREQ);
+    while connection.with(|c| c.is_connected()) {
+        interval.tick().await;
+        let data = connection.with_mut(|c| c.read());
+        if !data.is_empty() {
+            buffer.with_mut(|b| b.push_str(&data));
+        }
+    }
+}
+
+pub async fn connect(connection: UseRef<Connection>, port: &str) {
+    let mut interval = interval(SCAN_FREQ);
+    loop {
+        interval.tick().await;
+        match connection.write().open(port) {
+            Err(e) => {
+                error!("{:?}", e);
+            }
+            Ok(_) => break,
+        }
+    }
+}
+
+pub struct Connection {
+    handle: Option<Box<dyn SerialPort>>,
+    baud_rate: u32,
 }
 
 impl Connection {
-    fn open(port: &str, baud_rate: u32) -> Option<Self> {
-        match ports::connect(&port, baud_rate) {
-            Ok(port) => Some(Self {
-                handle: port,
-                is_connected: true,
-            }),
-            Err(e) => {
-                error!("{:?}", e);
-                None
-            }
+    pub fn new(baud_rate: u32) -> Self {
+        Self {
+            handle: None,
+            baud_rate,
         }
     }
-
-    fn close(&mut self) {
-        self.is_connected = false;
-    }
-
-    fn is_connected(&self) -> bool {
-        self.is_connected
-    }
-
-    fn write(&mut self, data: &str) {
-        let data: Vec<u8> = data.chars().map(|c| c as u8).collect();
-        match self.handle.write_all(&data) {
-            Ok(_) => (),
-            Err(e) => {
-                warn!("{:?}", e);
-                self.is_connected = false;
-            }
-        }
-    }
-
-    fn read(&mut self) -> String {
-        let mut buf = String::new();
-        match self.handle.read_to_string(&mut buf) {
-            Ok(_) => buf,
-            Err(ref e) if e.kind() == io::ErrorKind::TimedOut => buf,
-            Err(e) => {
-                warn!("{:?}", e);
-                self.is_connected = false;
-                buf
-            }
-        }
-    }
-
-    async fn scan(&mut self, buffer: Arc<Mutex<String>>) {
-        let mut interval = interval(SCAN_FREQ);
-        while self.is_connected() {
-            interval.tick().await;
-            buffer.lock().unwrap().push_str(&self.read());
-        }
-    }
-}
-
-pub struct AppState {
-    available_ports: Arc<Mutex<Vec<(String, UsbPortInfo)>>>,
-    handle: Arc<Mutex<Option<Connection>>>,
-    input_text: Arc<Mutex<String>>,
-    output_text: Arc<Mutex<String>>,
-}
-
-impl AppState {
-    pub fn new() -> Self {
-        let res = Self {
-            available_ports: Arc::new(Mutex::new(Vec::new())),
-            handle: Arc::new(Mutex::new(None)),
-            input_text: Arc::new(Mutex::new(String::new())),
-            output_text: Arc::new(Mutex::new(String::new())),
-        };
-        res.start_scan_available();
-        res
-    }
-
-    pub fn connect(&mut self, port: &str, baud_rate: u32) -> Result<(), ()> {
-        let mut handle = self.handle.lock().unwrap();
-        *handle = None;
-        match Connection::open(port, baud_rate) {
-            Some(port) => {
-                *handle = Some(port);
+    pub fn open(&mut self, port: &str) -> serialport::Result<()> {
+        match ports::connect(port, self.baud_rate) {
+            Ok(port) => {
+                self.handle = Some(port);
                 Ok(())
             }
-            None => {
-                if let Some(ref mut handle) = *handle {
-                    handle.close();
-                }
-                Err(())
+            Err(e) => {
+                self.handle = None;
+                Err(e)
             }
         }
     }
 
-    pub fn disconnect(&mut self) {
-        *self.handle.lock().unwrap() = None;
+    pub fn close(&mut self) {
+        self.handle = None;
+    }
+
+    pub fn get_baud_rate(&self) -> u32 {
+        self.baud_rate
+    }
+
+    pub fn set_baud_rate(&mut self, rate: u32) -> serialport::Result<()> {
+        if let Some(ref mut handle) = self.handle {
+            handle.set_baud_rate(rate)?;
+        }
+        self.baud_rate = rate;
+        Ok(())
     }
 
     pub fn is_connected(&self) -> bool {
-        match *self.handle.lock().unwrap() {
-            None => false,
-            Some(ref handle) => handle.is_connected(),
+        self.handle.is_some()
+    }
+
+    pub fn write(&mut self, data: &str) {
+        let data = data.as_bytes();
+        let res = match self.handle {
+            None => {
+                warn!("Attempted to write to unconnected port");
+                Ok(())
+            }
+            Some(ref mut handle) => handle.write_all(data),
+        };
+        match res {
+            Ok(()) => (),
+            Err(e) => {
+                warn!("{:?}", e);
+                self.handle = None;
+            }
         }
     }
 
-    pub fn get_available_ports(&self) -> Inner<Vec<(String, UsbPortInfo)>> {
-        Inner(self.available_ports.lock().unwrap())
-    }
-
-    pub fn get_input_text(&self) -> Inner<String> {
-        Inner(self.input_text.lock().unwrap())
-    }
-
-    pub fn get_output_text(&self) -> Inner<String> {
-        Inner(self.output_text.lock().unwrap())
-    }
-
-    pub fn append_input(&mut self, string: &str) {
-        self.input_text.lock().unwrap().push_str(string);
-    }
-
-    pub fn clear_output(&mut self) {
-        self.output_text.lock().unwrap().clear();
-    }
-
-    pub fn clear_input(&mut self) {
-        self.input_text.lock().unwrap().clear();
-    }
-
-    fn start_scan_available(&self) {
-        info!("Started port scan");
-        let port_list = self.available_ports.clone();
-        std::thread::spawn(move || loop {
-            std::thread::sleep(SCAN_FREQ);
-            *port_list.lock().unwrap() = ports::get_available_usb();
-        });
-    }
-
-    pub async fn start_service(&mut self, rx: UnboundedReceiver<Action>) {
-        let (read_tx, read_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        let (write_tx, write_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        loop {
-            yield_now().await
+    pub fn read(&mut self) -> String {
+        let mut buf = String::new();
+        let res = match self.handle {
+            None => {
+                warn!("Attempted to read from unconnected port");
+                Some(buf)
+            }
+            Some(ref mut handle) => match handle.read_to_string(&mut buf) {
+                Ok(_) => Some(buf),
+                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => Some(buf),
+                Err(e) => {
+                    warn!("{:?}", e);
+                    None
+                }
+            },
+        };
+        match res {
+            None => {
+                self.handle = None;
+                String::new()
+            }
+            Some(s) => s,
         }
-    }
-}
-
-pub enum Action {}
-
-pub async fn start_service(mut rx: UnboundedReceiver<Action>, atoms: AtomRoot) {}
-
-pub struct Inner<'a, T>(MutexGuard<'a, T>);
-
-impl<'a, T> Deref for Inner<'a, T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &*self.0
     }
 }
