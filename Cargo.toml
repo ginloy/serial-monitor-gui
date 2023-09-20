@@ -14,7 +14,8 @@ log = "0.4.20"
 rdev = "0.5.3"
 serialport = { git = "https://github.com/LukaOber/serialport-rs.git" }
 tokio = { version = "1.32.0", features = ["full"] }
-rfd = "0.11.3"
+rfd = { version = "0.11.3", features = ["file-handle-inner"] }
 env_logger = "0.10.0"
 tokio-serial = "5.4.4"
+dirs = "5.0.1"
 

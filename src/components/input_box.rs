@@ -3,10 +3,10 @@ use dioxus::{
     prelude::*,
 };
 
-use crate::api::Connection;
+use crate::api::{Connection, self};
 
 #[inline_props]
-pub fn InputBox(cx: Scope, user_buffer: UseRef<String>, connection: UseRef<Connection>) -> Element {
+pub fn InputBox(cx: Scope, user_buffer: UseRef<String>, connection: UseRef<Connection>, port_buffer: UseRef<String>) -> Element {
     let inp = use_state(cx, || String::new());
 
     let write = |s: &str| {
@@ -47,7 +47,32 @@ pub fn InputBox(cx: Scope, user_buffer: UseRef<String>, connection: UseRef<Conne
                     }
                 },
                 "Send"
+            },
+            DownloadButton { user_buffer: user_buffer.clone(), port_buffer: port_buffer.clone() }
+        }
+    }
+}
+
+#[inline_props]
+fn DownloadButton(cx: Scope, user_buffer: UseRef<String>, port_buffer: UseRef<String>) -> Element {
+    let trigger_download = |_| {
+        let content = vec![user_buffer.read().clone(), port_buffer.read().clone()];
+        let titles = vec!["user".to_string(), "port".to_string()];
+        cx.spawn({
+            async move {
+                let path = api::get_download_path().await;
+                if let Some(path) = path {
+                    let handle = api::start_download(titles, content, path);
+                }
             }
+        })
+    };
+    
+    render! {
+        button {
+            class: "btn btn-primary",
+            onclick: trigger_download,
+            "Download"
         }
     }
 }

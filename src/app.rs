@@ -55,7 +55,7 @@ pub fn App(cx: Scope) -> Element {
                     class: "row pb-2",
                     div {
                         class: "col-md",
-                        InputBox { user_buffer: user_buffer.clone(), connection: connection.clone() }
+                        InputBox { user_buffer: user_buffer.clone(), connection: connection.clone(), port_buffer: port_buffer.clone() }
                     },
                 }
             }
