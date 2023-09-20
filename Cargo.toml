@@ -8,12 +8,10 @@ resolver = "2"
 
 [dependencies]
 dioxus = "0.4.0"
-fermi = { git = "https://github.com/dioxuslabs/dioxus" }
 dioxus-desktop = "0.4.0"
 log = "0.4.20"
-rdev = "0.5.3"
 tokio = { version = "1.32.0", features = ["full"] }
-rfd = { version = "0.11.3", features = ["file-handle-inner"] }
+rfd = { version = "0.12.0", default-features = false, features = ["xdg-portal"] }
 env_logger = "0.10.0"
 tokio-serial = "5.4.4"
 dirs = "5.0.1"
