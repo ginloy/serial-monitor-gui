@@ -2,6 +2,7 @@
 mod api;
 mod app;
 mod ports;
+mod handle;
 mod components {
     pub mod consoles;
     pub mod input_box;
