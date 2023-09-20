@@ -206,7 +206,7 @@ async fn get_download_path() -> Option<PathBuf> {
     AsyncFileDialog::new()
         .add_filter(".csv", &["csv"])
         .set_directory(&dir)
-        .set_file_name("record")
+        .set_file_name("record.csv")
         .save_file()
         .await
         .map(|p| p.path().to_owned())
