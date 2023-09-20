@@ -151,7 +151,7 @@ fn process_data(titles: Vec<String>, content: Vec<String>) -> Vec<Vec<String>> {
 }
 
 fn download_csv(data: Vec<Vec<String>>, path: PathBuf) -> csv::Result<()> {
-    let mut wtr = csv::WriterBuilder::new().flexible(true).from_path(&path)?;
+    let mut wtr = csv::WriterBuilder::new().from_path(&path)?;
     data.into_iter().map(|v| wtr.write_record(&v)).collect()
 }
 
@@ -179,15 +179,22 @@ pub async fn download(titles: Vec<String>, content: Vec<String>) {
     match get_download_path().await {
         None => (),
         Some(path) => {
-            let handle = start_download_csv(data, path);
+            let handle = start_download_csv(data, path.clone());
             while !handle.is_finished() {
                 check_interval.tick().await;
             }
-            let res = handle.join();
+            let res = handle.join().unwrap();
             match res {
-                Ok(_) => (),
+                Ok(_) => {
+                    info!("Download successful");
+                },
                 Err(e) => {
                     show_download_error_dialog(format!("{:?}", e).as_str()).await;
+                    if tokio::fs::remove_file(path).await.is_err() {
+                        warn!("Failed to remove download");
+                    } else {
+                        warn!("Download removed due to error downloading");
+                    }
                 }
             }
         }
