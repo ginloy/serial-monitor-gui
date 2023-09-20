@@ -58,18 +58,24 @@ fn Selector(
     };
 
     render! {
-        select {
-            class: "form-select bg-secondary",
-            onchange: connect, //|evt| println!("{:?}", evt),
-            if available_ports.is_empty() {
-                rsx! { option { value: "none", "No ports detected" } }
-            } else {
-                rsx! { option { value: "none" ,"Select port" } }
-            }
-            available_ports.iter().map(|(x, inf)| rsx!{ option {
-                value: "{x}",
-                format!("{}\t|\t{}\t|\t{}", x, inf.manufacturer.clone().unwrap_or(String::new()), inf.product.clone().unwrap_or(String::new()))
-            }})
+        div {
+            class: "form-floating",
+            select {
+                class: "form-select bg-secondary",
+                onchange: connect, //|evt| println!("{:?}", evt),
+                if available_ports.is_empty() {
+                    rsx! { option { value: "none", "No ports detected" } }
+                } else {
+                    rsx! { option { value: "none" ,"Select port" } }
+                }
+                available_ports.iter().map(|(x, inf)| rsx!{ option {
+                    value: "{x}",
+                    format!("{}\t|\t{}\t|\t{}", x, inf.manufacturer.clone().unwrap_or(String::new()), inf.product.clone().unwrap_or(String::new()))
+                }})
+            },
+            label {
+                "Port"
+            },
         }
     }
 }
@@ -79,7 +85,9 @@ fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
     let inp = connection.with(|c| c.get_baud_rate().to_string());
     let set_br = |s: &str| match str::parse::<u32>(s) {
         Ok(x) => match connection.with_mut(|c| c.set_baud_rate(x)) {
-            Ok(_) => (),
+            Ok(_) => {
+                info!("Baud rate set to {x}");
+            },
             Err(e) => {
                 error!("{:?}", e);
             }
@@ -89,17 +97,23 @@ fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
         }
     };
     render! {
-        input {
-            value: "{inp}",
-            class: "form-control bg-secondary",
-            r#type: "number",
-            min: "0",
-            max: "200000",
-            step: "100",
-            placeholder: "baud rate",
-            oninput: move |event| {
-                set_br(&event.value);
-            }
+        div {
+            class: "form-floating",
+            input {
+                value: "{inp}",
+                class: "form-control bg-secondary",
+                r#type: "number",
+                min: "0",
+                max: "200000",
+                step: "100",
+                placeholder: "baud rate",
+                oninput: move |event| {
+                    set_br(&event.value);
+                }
+            },
+            label {
+                "Baud Rate"
+            },
         }
     }
 }
