@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use dioxus::prelude::*;
 use dirs::download_dir;
 use log::*;
-use rfd::{FileDialog, AsyncFileDialog};
+use rfd::AsyncFileDialog;
 use tokio::{
     io::AsyncWriteExt,
     time::{interval, Duration},
@@ -137,7 +137,13 @@ impl Connection {
 }
 
 mod Download {
-    use std::{fs::File, io::Write, path::{Path, PathBuf}, thread, thread::JoinHandle};
+    use std::{
+        fs::File,
+        io::Write,
+        path::{Path, PathBuf},
+        thread,
+        thread::JoinHandle,
+    };
 
     fn download(titles: Vec<String>, content: Vec<String>, path: &Path) -> std::io::Result<()> {
         let mut file = File::create(path)?;
@@ -159,7 +165,9 @@ mod Download {
                 if j != 0 {
                     temp.push(',');
                 }
-                temp.push_str(format!("\"{}\"", content[j].get(i).unwrap_or(&"".to_string())).as_str());
+                temp.push_str(
+                    format!("\"{}\"", content[j].get(i).unwrap_or(&"".to_string())).as_str(),
+                );
             }
             temp.push('\n');
         }
@@ -172,14 +180,17 @@ mod Download {
         content: Vec<String>,
         path: PathBuf,
     ) -> JoinHandle<std::io::Result<()>> {
-        thread::spawn(move || { download(titles, content, &path) })
+        thread::spawn(move || download(titles, content, &path))
     }
 }
 
 pub async fn get_download_path() -> Option<PathBuf> {
     let dir = download_dir()?;
     AsyncFileDialog::new()
-        .add_filter("csv", &["csv"])
+        .add_filter(".csv", &["csv"])
         .set_directory(&dir)
-        .save_file().await.map(|f| f.inner().to_owned())
+        .set_file_name("record.csv")
+        .save_file()
+        .await
+        .map(|f| f.inner().to_owned())
 }
