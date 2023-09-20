@@ -145,7 +145,7 @@ fn process_data(titles: Vec<String>, content: Vec<String>) -> Vec<Vec<String>> {
     let num_cols = mat.iter().map(|r| r.len()).max().unwrap();
     let mut row_iters: Vec<_> = mat.into_iter().map(|r| r.into_iter()).collect();
     (0..num_cols)
-        .map(|_| row_iters.iter_mut().map(|it| it.next().unwrap()).collect())
+        .map(|_| row_iters.iter_mut().map(|it| it.next().unwrap_or("".to_string())).collect())
         .for_each(|r| res.push(r));
     res
 }
