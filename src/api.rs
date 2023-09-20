@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use dioxus::prelude::*;
 use dirs::download_dir;
 use log::*;
-use rfd::AsyncFileDialog;
+use rfd::{AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageLevel};
 use tokio::{
     io::AsyncWriteExt,
     time::{interval, Duration},
@@ -13,7 +13,6 @@ use tokio_serial::{SerialPort, SerialStream, UsbPortInfo};
 use crate::ports;
 
 pub static SCAN_FREQ: Duration = Duration::from_millis(20);
-pub use Download::*;
 
 pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
     let mut interval = interval(SCAN_FREQ);
@@ -136,61 +135,82 @@ impl Connection {
     }
 }
 
-mod Download {
-    use std::{
-        fs::File,
-        io::Write,
-        path::{Path, PathBuf},
-        thread,
-        thread::JoinHandle,
-    };
+fn process_data(titles: Vec<String>, content: Vec<String>) -> Vec<Vec<String>> {
+    let mut res = Vec::new();
+    res.push(titles);
+    let mat: Vec<Vec<_>> = content
+        .into_iter()
+        .map(|s| s.lines().map(|s| s.to_string()).collect())
+        .collect();
+    let num_cols = mat.iter().map(|r| r.len()).max().unwrap();
+    let mut row_iters: Vec<_> = mat.into_iter().map(|r| r.into_iter()).collect();
+    (0..num_cols)
+        .map(|_| row_iters.iter_mut().map(|it| it.next().unwrap()).collect())
+        .for_each(|r| res.push(r));
+    res
+}
 
-    fn download(titles: Vec<String>, content: Vec<String>, path: &Path) -> std::io::Result<()> {
-        let mut file = File::create(path)?;
-        let mut temp = String::new();
-        titles
-            .into_iter()
-            .map(|s| format!("\"{}\"", s))
-            .enumerate()
-            .map(|(i, s)| if i != 0 { format!(",{s}") } else { s })
-            .for_each(|s| temp.push_str(&s));
-        temp.push('\n');
-        let content = content
-            .into_iter()
-            .map(|s| s.lines().map(|s| s.to_string()).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
-        let longest = content.iter().map(|v| v.len()).max().unwrap();
-        for i in 0..longest {
-            for j in 0..content.len() {
-                if j != 0 {
-                    temp.push(',');
-                }
-                temp.push_str(
-                    format!("\"{}\"", content[j].get(i).unwrap_or(&"".to_string())).as_str(),
-                );
-            }
-            temp.push('\n');
-        }
-        file.write_all(temp.as_bytes())?;
-        Ok(())
+fn download_csv(data: Vec<Vec<String>>, path: PathBuf) -> csv::Result<()> {
+    let mut wtr = csv::WriterBuilder::new().flexible(true).from_path(&path)?;
+    data.into_iter().map(|v| wtr.write_record(&v)).collect()
+}
+
+fn start_process_data(
+    titles: Vec<String>,
+    content: Vec<String>,
+) -> std::thread::JoinHandle<Vec<Vec<String>>> {
+    std::thread::spawn(move || process_data(titles, content))
+}
+
+fn start_download_csv(
+    data: Vec<Vec<String>>,
+    path: PathBuf,
+) -> std::thread::JoinHandle<csv::Result<()>> {
+    std::thread::spawn(move || download_csv(data, path))
+}
+
+pub async fn download(titles: Vec<String>, content: Vec<String>) {
+    let handle = start_process_data(titles, content);
+    let mut check_interval = interval(SCAN_FREQ);
+    while !handle.is_finished() {
+        check_interval.tick().await;
     }
-
-    pub fn start_download(
-        titles: Vec<String>,
-        content: Vec<String>,
-        path: PathBuf,
-    ) -> JoinHandle<std::io::Result<()>> {
-        thread::spawn(move || download(titles, content, &path))
+    let data = handle.join().unwrap();
+    match get_download_path().await {
+        None => (),
+        Some(path) => {
+            let handle = start_download_csv(data, path);
+            while !handle.is_finished() {
+                check_interval.tick().await;
+            }
+            let res = handle.join();
+            match res {
+                Ok(_) => (),
+                Err(e) => {
+                    show_download_error_dialog(format!("{:?}", e).as_str()).await;
+                }
+            }
+        }
     }
 }
 
-pub async fn get_download_path() -> Option<PathBuf> {
+async fn get_download_path() -> Option<PathBuf> {
     let dir = download_dir()?;
     AsyncFileDialog::new()
         .add_filter(".csv", &["csv"])
         .set_directory(&dir)
-        .set_file_name("record.csv")
+        .set_file_name("record")
         .save_file()
         .await
-        .map(|f| f.inner().to_owned())
+        .map(|p| p.path().to_owned())
+}
+
+async fn show_download_error_dialog(msg: &str) {
+    AsyncMessageDialog::new()
+        .set_level(MessageLevel::Error)
+        .set_title("Download failed")
+        .set_description(msg)
+        .set_buttons(MessageButtons::Ok)
+        .show()
+        .await;
 }

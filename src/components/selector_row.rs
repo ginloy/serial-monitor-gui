@@ -87,7 +87,7 @@ fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
         Ok(x) => match connection.with_mut(|c| c.set_baud_rate(x)) {
             Ok(_) => {
                 info!("Baud rate set to {x}");
-            },
+            }
             Err(e) => {
                 error!("{:?}", e);
             }

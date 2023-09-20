@@ -3,10 +3,15 @@ use dioxus::{
     prelude::*,
 };
 
-use crate::api::{Connection, self};
+use crate::api::{self, Connection};
 
 #[inline_props]
-pub fn InputBox(cx: Scope, user_buffer: UseRef<String>, connection: UseRef<Connection>, port_buffer: UseRef<String>) -> Element {
+pub fn InputBox(
+    cx: Scope,
+    user_buffer: UseRef<String>,
+    connection: UseRef<Connection>,
+    port_buffer: UseRef<String>,
+) -> Element {
     let inp = use_state(cx, || String::new());
 
     let write = |s: &str| {
@@ -31,7 +36,6 @@ pub fn InputBox(cx: Scope, user_buffer: UseRef<String>, connection: UseRef<Conne
                    inp.set(event.value.clone());
                 },
                 onkeypress: move |event| {
-                    // println!("{:?}", event);
                     if !inp.is_empty() && !event.modifiers().contains(Modifiers::SHIFT) && event.key() == Key::Enter {
                         write(&inp);
                         inp.set(String::new());
@@ -60,14 +64,11 @@ fn DownloadButton(cx: Scope, user_buffer: UseRef<String>, port_buffer: UseRef<St
         let titles = vec!["user".to_string(), "port".to_string()];
         cx.spawn({
             async move {
-                let path = api::get_download_path().await;
-                if let Some(path) = path {
-                    let handle = api::start_download(titles, content, path);
-                }
+                api::download(titles, content).await;
             }
         })
     };
-    
+
     render! {
         button {
             class: "btn btn-primary",
