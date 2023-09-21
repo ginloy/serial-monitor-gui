@@ -57,7 +57,6 @@ impl Handle {
 
     #[must_use]
     pub fn reconnect(&mut self, port: &str, br: u32) -> Result<()> {
-        self.task_handles.iter().for_each(|h| h.abort());
         *self = Handle::open(port, br)?;
         Ok(())
     }
