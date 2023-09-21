@@ -58,18 +58,21 @@ pub fn InputBox(
                     "Send"
                 }
             },
-            DownloadButton {user_buffer: user_buffer.clone(), port_buffer: port_buffer.clone()}
-            
+            DownloadButton {
+                user_buffer: user_buffer.clone(), 
+                port_buffer: port_buffer.clone(), 
+                titles: vec!["user".to_string(), connection.read().get_name().to_string()]
+            }
         }
     }
 }
 
 #[inline_props]
-fn DownloadButton(cx: Scope, user_buffer: UseRef<String>, port_buffer: UseRef<String>) -> Element {
+fn DownloadButton(cx: Scope, user_buffer: UseRef<String>, port_buffer: UseRef<String>, titles: Vec<String>) -> Element {
     let trigger_download = |_| {
         let content = vec![user_buffer.read().clone(), port_buffer.read().clone()];
-        let titles = vec!["user".to_string(), "port".to_string()];
         cx.spawn({
+            to_owned![titles];
             async move {
                 api::download(titles, content).await;
             }

@@ -94,6 +94,10 @@ impl Connection {
         self.baud_rate
     }
 
+    pub fn get_name(&self) -> &str {
+        self.name.as_ref().map(|s| s.as_str()).unwrap_or("none")
+    }
+
     #[must_use]
     pub fn set_baud_rate(&mut self, rate: u32) -> handle::Result<()> {
         self.handle = None;
