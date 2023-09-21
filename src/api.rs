@@ -1,16 +1,19 @@
-use std::path::PathBuf;
+use std::{
+    io::{Error, ErrorKind::NotConnected},
+    path::PathBuf,
+};
 
 use dioxus::prelude::*;
 use dirs::download_dir;
 use log::*;
 use rfd::{AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageLevel};
-use tokio::{
-    io::AsyncWriteExt,
-    time::{interval, Duration},
-};
-use tokio_serial::{SerialPort, SerialStream, UsbPortInfo};
+use tokio::time::{interval, Duration};
+use tokio_serial::UsbPortInfo;
 
-use crate::ports;
+use crate::{
+    handle::{self, Handle},
+    ports,
+};
 
 pub static SCAN_FREQ: Duration = Duration::from_millis(20);
 
@@ -28,8 +31,16 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
     while connection.with(|c| c.is_connected()) {
         interval.tick().await;
         let data = connection.write().read();
-        if !data.is_empty() {
-            buffer.with_mut(|b| b.push_str(&data));
+        match data {
+            Ok(x) => {
+                if !x.is_empty() {
+                    buffer.with_mut(|b| b.push_str(&x));
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                break;
+            }
         }
     }
     info!(
@@ -53,7 +64,8 @@ pub async fn connect(connection: UseRef<Connection>, port: &str) {
 
 #[derive(Debug)]
 pub struct Connection {
-    handle: Option<SerialStream>,
+    handle: Option<Handle>,
+    name: Option<String>,
     baud_rate: u32,
 }
 
@@ -61,76 +73,54 @@ impl Connection {
     pub fn new(baud_rate: u32) -> Self {
         Self {
             handle: None,
+            name: None,
             baud_rate,
         }
     }
-    pub fn open(&mut self, port: &str) -> tokio_serial::Result<()> {
-        match ports::connect(port, self.baud_rate) {
-            Ok(port) => {
-                self.handle = Some(port);
-                Ok(())
-            }
-            Err(e) => {
-                self.handle = None;
-                Err(e)
-            }
-        }
+
+    #[must_use]
+    pub fn open(&mut self, port: &str) -> handle::Result<()> {
+        self.handle = Some(Handle::open(port, self.baud_rate)?);
+        self.name = Some(port.to_string());
+        Ok(())
     }
 
     pub fn close(&mut self) {
         self.handle = None;
+        self.name = None;
     }
 
     pub fn get_baud_rate(&self) -> u32 {
         self.baud_rate
     }
 
-    pub fn set_baud_rate(&mut self, rate: u32) -> tokio_serial::Result<()> {
-        if let Some(ref mut handle) = self.handle {
-            handle.set_baud_rate(rate)?;
-        }
+    #[must_use]
+    pub fn set_baud_rate(&mut self, rate: u32) -> handle::Result<()> {
+        self.handle = None;
         self.baud_rate = rate;
+        let name = self.name.as_ref().unwrap().clone();
+        self.open(&name)?;
         Ok(())
     }
 
     pub fn is_connected(&self) -> bool {
-        self.handle.is_some()
-    }
-
-    pub async fn write(&mut self, data: &str) {
-        let data = data.as_bytes();
-        let res = match self.handle {
-            None => {
-                warn!("Attempted to write to unconnected port");
-                Ok(())
-            }
-            Some(ref mut handle) => handle.write_all(data).await,
-        };
-        match res {
-            Ok(()) => (),
-            Err(e) => {
-                warn!("{:?}", e);
-                self.handle = None;
-            }
+        match self.handle {
+            None => false,
+            Some(ref handle) => handle.is_connected(),
         }
     }
 
-    pub fn read(&mut self) -> String {
-        let mut buf = [0u8; 64];
+    pub fn write(&mut self, data: &str) -> handle::Result<()> {
         match self.handle {
-            None => {
-                warn!("Attempted to read from unconnected port");
-                String::new()
-            }
-            Some(ref mut handle) => match handle.try_read(&mut buf) {
-                Ok(x) => std::str::from_utf8(&buf[..x]).unwrap().to_string(),
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => String::new(),
-                Err(e) => {
-                    warn!("{:?}", e);
-                    self.handle = None;
-                    String::new()
-                }
-            },
+            None => Err(Error::new(NotConnected, "Not connected")),
+            Some(ref mut handle) => handle.write(data),
+        }
+    }
+
+    pub fn read(&mut self) -> handle::Result<String> {
+        match self.handle {
+            None => Err(Error::new(NotConnected, "Not connected")),
+            Some(ref mut handle) => handle.read(),
         }
     }
 }
@@ -145,7 +135,12 @@ fn process_data(titles: Vec<String>, content: Vec<String>) -> Vec<Vec<String>> {
     let num_cols = mat.iter().map(|r| r.len()).max().unwrap();
     let mut row_iters: Vec<_> = mat.into_iter().map(|r| r.into_iter()).collect();
     (0..num_cols)
-        .map(|_| row_iters.iter_mut().map(|it| it.next().unwrap_or("".to_string())).collect())
+        .map(|_| {
+            row_iters
+                .iter_mut()
+                .map(|it| it.next().unwrap_or("".to_string()))
+                .collect()
+        })
         .for_each(|r| res.push(r));
     res
 }
@@ -187,7 +182,7 @@ pub async fn download(titles: Vec<String>, content: Vec<String>) {
             match res {
                 Ok(_) => {
                     info!("Download successful");
-                },
+                }
                 Err(e) => {
                     show_download_error_dialog(format!("{:?}", e).as_str()).await;
                     if tokio::fs::remove_file(path).await.is_err() {
@@ -204,7 +199,7 @@ pub async fn download(titles: Vec<String>, content: Vec<String>) {
 async fn get_download_path() -> Option<PathBuf> {
     let dir = download_dir()?;
     AsyncFileDialog::new()
-        .add_filter(".csv", &["csv"])
+        .add_filter("CSV", &["csv"])
         .set_directory(&dir)
         .set_file_name("record.csv")
         .save_file()

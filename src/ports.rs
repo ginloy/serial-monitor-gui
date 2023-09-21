@@ -1,4 +1,4 @@
-use tokio_serial::{self, Result, SerialPortBuilderExt, SerialPortType, SerialStream, UsbPortInfo};
+use tokio_serial::{self, SerialPortType, UsbPortInfo};
 
 pub fn get_available_usb() -> Vec<(String, UsbPortInfo)> {
     let mut res = Vec::new();
@@ -13,8 +13,4 @@ pub fn get_available_usb() -> Vec<(String, UsbPortInfo)> {
         }
         Err(_) => res,
     }
-}
-
-pub fn connect(port: &str, baud_rate: u32) -> Result<SerialStream> {
-    tokio_serial::new(port, baud_rate).open_native_async()
 }

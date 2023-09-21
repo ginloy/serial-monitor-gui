@@ -2,6 +2,7 @@ use dioxus::{
     html::input_data::keyboard_types::{Key, Modifiers},
     prelude::*,
 };
+use log::*;
 
 use crate::api::{self, Connection};
 
@@ -20,7 +21,9 @@ pub fn InputBox(
         cx.spawn({
             to_owned![connection];
             async move {
-                connection.write().write(&s).await;
+                if let Err(e) = connection.write().write(&s) {
+                    error!("{:?}", e);
+                }
             }
         })
     };
