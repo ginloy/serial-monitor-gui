@@ -92,6 +92,7 @@ impl Connection {
         self.name = None;
     }
 
+    #[allow(dead_code)]
     pub fn get_baud_rate(&self) -> u32 {
         self.baud_rate
     }

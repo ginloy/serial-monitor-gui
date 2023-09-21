@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 mod api;
 mod app;
-mod ports;
 mod handle;
+mod ports;
 mod components {
     pub mod consoles;
     pub mod input_box;

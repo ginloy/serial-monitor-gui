@@ -1,14 +1,12 @@
 use log::*;
-use core::time;
-use std::{io::{Error, ErrorKind::BrokenPipe, ErrorKind::InvalidData}, time::Duration};
+
+use std::io::{Error, ErrorKind::BrokenPipe, ErrorKind::InvalidData};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
-
-use crate::api::{READ_FREQ, SCAN_FREQ};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
