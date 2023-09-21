@@ -40,7 +40,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
                 }
             }
             Err(e) => {
-                warn!("{:?}", e);
+                // warn!("{:?}", e);
                 // break;
             }
         }
