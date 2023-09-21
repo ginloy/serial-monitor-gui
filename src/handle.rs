@@ -55,7 +55,7 @@ impl Handle {
     }
 
     pub fn is_connected(&self) -> bool {
-        !self.write_channel.is_closed()
+        self.task_handles.iter().all(|h| !h.is_finished())
     }
 }
 
