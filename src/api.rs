@@ -40,13 +40,12 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
                 }
             }
             Err(e) => {
-                // warn!("{:?}", e);
-                // break;
+                debug!("{:?}", e);
             }
         }
     }
     info!(
-        "Reading from {:?} stopped due to loss in connection",
+        "Reading from {:?} stopped as connection was dropped",
         connection.read()
     );
 }
@@ -115,10 +114,7 @@ impl Connection {
     }
 
     pub fn is_connected(&self) -> bool {
-        match self.handle {
-            None => false,
-            Some(ref handle) => handle.is_connected(),
-        }
+        self.handle.as_ref().map(|h| h.is_connected()).unwrap_or(false)
     }
 
     pub fn has_handle(&self) -> bool {
@@ -126,17 +122,17 @@ impl Connection {
     }
 
     pub fn write(&mut self, data: &str) -> handle::Result<()> {
-        match self.handle {
-            None => Err(Error::new(NotConnected, "Not connected")),
-            Some(ref mut handle) => handle.write(data),
-        }
+        self.handle
+            .as_ref()
+            .ok_or(Error::new(NotConnected, "Not connected"))
+            .and_then(|h| h.write(data))
     }
 
     pub fn read(&mut self) -> handle::Result<String> {
-        match self.handle {
-            None => Err(Error::new(NotConnected, "Not connected")),
-            Some(ref mut handle) => handle.read(),
-        }
+        self.handle
+            .as_mut()
+            .ok_or(Error::new(NotConnected, "Not connected"))
+            .and_then(|h| h.read())
     }
 }
 
