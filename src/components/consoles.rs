@@ -41,14 +41,14 @@ fn Console(cx: Scope, id: usize, buffer: UseRef<String>) -> Element {
             class: "h-100 position-relative",
             textarea {
                 id: "{element_id}",
-                class: "form-control bg-secondary w-100 h-100",
+                class: "form-control w-100 h-100",
                 font_size: "0.875rem",
                 readonly: true,
                 resize: "none",
                 "{content}"
             }
             button {
-                class: "btn btn-danger position-absolute bg-gradient",
+                class: "btn btn-outline-danger position-absolute",
                 font_size: "0.9rem",
                 top: "10px",
                 right: "10px",

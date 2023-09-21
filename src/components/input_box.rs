@@ -91,7 +91,7 @@ fn DownloadButton(
         if !*is_downloading.get() {
             rsx! {
                 button {
-                    class: "btn btn-primary",
+                    class: "btn btn-primary bg-gradient",
                     onclick: trigger_download,
                     "Download"
                 }

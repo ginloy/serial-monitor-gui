@@ -2,7 +2,8 @@ use log::*;
 use std::io::{Error, ErrorKind::BrokenPipe, ErrorKind::InvalidData};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
-    sync::mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender}, task::JoinHandle,
+    sync::mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender},
+    task::JoinHandle,
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
@@ -12,7 +13,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub struct Handle {
     write_channel: UnboundedSender<String>,
     read_channel: UnboundedReceiver<String>,
-    task_handles: Vec<JoinHandle<()>>
+    task_handles: Vec<JoinHandle<()>>,
 }
 
 impl Handle {
@@ -34,7 +35,7 @@ impl Handle {
         Ok(Self {
             write_channel: tx_write,
             read_channel: rx_read,
-            task_handles: vec![h1, h2]
+            task_handles: vec![h1, h2],
         })
     }
 
@@ -48,10 +49,9 @@ impl Handle {
 
     #[must_use]
     pub fn write(&self, content: &str) -> Result<()> {
-        match self.write_channel.send(content.to_string()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(Error::new(BrokenPipe, "Handle disconnected")),
-        }
+        self.write_channel
+            .send(content.to_string())
+            .map_err(|_| Error::new(BrokenPipe, "Handle disconnected"))
     }
 
     pub fn is_connected(&self) -> bool {
@@ -74,16 +74,13 @@ async fn read_task(
     while !channel.is_closed() {
         debug!("reading");
         let n_bytes = handle.read(&mut buf).await?;
-        match std::str::from_utf8(&buf[..n_bytes]) {
-            Ok(str) => {
+        std::str::from_utf8(&buf[..n_bytes])
+            .map_err(|e| Error::new(InvalidData, e))
+            .and_then(|s| {
                 channel
-                    .send(str.to_string())
-                    .map_err(|e| Error::new(BrokenPipe, e))?;
-            }
-            Err(e) => {
-                Err(Error::new(InvalidData, e))?;
-            }
-        }
+                    .send(s.to_string())
+                    .map_err(|e| Error::new(BrokenPipe, e))
+            })?;
     }
     info!("Read task ended");
     Ok(())

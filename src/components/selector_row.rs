@@ -61,7 +61,7 @@ fn Selector(
         div {
             class: "form-floating",
             select {
-                class: "form-select bg-secondary",
+                class: "form-select",
                 onchange: connect, //|evt| println!("{:?}", evt),
                 if available_ports.is_empty() {
                     rsx! { option { value: "none", "No ports detected" } }
@@ -101,7 +101,7 @@ fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
             class: "form-floating",
             input {
                 value: "{inp}",
-                class: "form-control bg-secondary",
+                class: "form-control",
                 r#type: "number",
                 min: "0",
                 max: "200000",
