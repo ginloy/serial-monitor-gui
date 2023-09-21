@@ -30,9 +30,9 @@ pub fn InputBox(
 
     render! {
         div {
-            class: "d-flex",
+            class: "d-flex gap-2",
             div {
-                class: "input-group pe-2",
+                class: "input-group",
                 input {
                     value: "{inp}",
                     class: "form-control bg-gradient",
@@ -59,8 +59,8 @@ pub fn InputBox(
                 }
             },
             DownloadButton {
-                user_buffer: user_buffer.clone(), 
-                port_buffer: port_buffer.clone(), 
+                user_buffer: user_buffer.clone(),
+                port_buffer: port_buffer.clone(),
                 titles: vec!["user".to_string(), connection.read().get_name().to_string()]
             }
         }
@@ -68,22 +68,45 @@ pub fn InputBox(
 }
 
 #[inline_props]
-fn DownloadButton(cx: Scope, user_buffer: UseRef<String>, port_buffer: UseRef<String>, titles: Vec<String>) -> Element {
+fn DownloadButton(
+    cx: Scope,
+    user_buffer: UseRef<String>,
+    port_buffer: UseRef<String>,
+    titles: Vec<String>,
+) -> Element {
+    let is_downloading = use_state(cx, || false);
     let trigger_download = |_| {
         let content = vec![user_buffer.read().clone(), port_buffer.read().clone()];
         cx.spawn({
-            to_owned![titles];
+            to_owned![titles, is_downloading];
             async move {
+                is_downloading.set(true);
                 api::download(titles, content).await;
+                is_downloading.set(false);
             }
         })
     };
 
     render! {
-        button {
-            class: "btn btn-primary",
-            onclick: trigger_download,
-            "Download"
+        if !*is_downloading.get() {
+            rsx! {
+                button {
+                    class: "btn btn-primary",
+                    onclick: trigger_download,
+                    "Download"
+                }
+            }
+        } else {
+            rsx! {
+                button {
+                    class: "btn btn-primary d-flex align-items-center gap-1",
+                    disabled: true,
+                    div {
+                        class: "spinner-border spinner-border-sm",
+                    },
+                    div { "Downloading..." },
+                }
+            }
         }
     }
 }
