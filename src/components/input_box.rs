@@ -10,8 +10,8 @@ use crate::api::{self, Connection};
 pub fn InputBox(
     cx: Scope,
     user_buffer: UseRef<String>,
-    connection: UseRef<Connection>,
     port_buffer: UseRef<String>,
+    connection: UseRef<Connection>,
 ) -> Element {
     let inp = use_state(cx, || String::new());
 
@@ -30,32 +30,36 @@ pub fn InputBox(
 
     render! {
         div {
-            class: "input-group",
-            input {
-                value: "{inp}",
-                class: "form-control bg-gradient",
-                spellcheck: "false",
-                oninput: move |event| {
-                   inp.set(event.value.clone());
-                },
-                onkeypress: move |event| {
-                    if !inp.is_empty() && !event.modifiers().contains(Modifiers::SHIFT) && event.key() == Key::Enter {
-                        write(&inp);
-                        inp.set(String::new());
+            class: "d-flex",
+            div {
+                class: "input-group pe-2",
+                input {
+                    value: "{inp}",
+                    class: "form-control bg-gradient",
+                    spellcheck: "false",
+                    oninput: move |event| {
+                       inp.set(event.value.clone());
+                    },
+                    onkeypress: move |event| {
+                        if !inp.is_empty() && !event.modifiers().contains(Modifiers::SHIFT) && event.key() == Key::Enter {
+                            write(&inp);
+                            inp.set(String::new());
+                        }
                     }
                 }
-            }
-            button {
-                class: "btn btn-primary bg-gradient",
-                onclick: move |_| {
-                    if !inp.is_empty() {
-                        write(&inp);
-                        inp.set(String::new());
-                    }
-                },
-                "Send"
+                button {
+                    class: "btn btn-primary bg-gradient",
+                    onclick: move |_| {
+                        if !inp.is_empty() {
+                            write(&inp);
+                            inp.set(String::new());
+                        }
+                    },
+                    "Send"
+                }
             },
-            DownloadButton { user_buffer: user_buffer.clone(), port_buffer: port_buffer.clone() }
+            DownloadButton {user_buffer: user_buffer.clone(), port_buffer: port_buffer.clone()}
+            
         }
     }
 }
