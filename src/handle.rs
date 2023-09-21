@@ -1,11 +1,14 @@
 use log::*;
-use std::io::{Error, ErrorKind::BrokenPipe, ErrorKind::InvalidData};
+use core::time;
+use std::{io::{Error, ErrorKind::BrokenPipe, ErrorKind::InvalidData}, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
     sync::mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
+
+use crate::api::{READ_FREQ, SCAN_FREQ};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -54,6 +57,13 @@ impl Handle {
             .map_err(|_| Error::new(BrokenPipe, "Handle disconnected"))
     }
 
+    #[must_use]
+    pub fn reconnect(&mut self, port: &str, br: u32) -> Result<()> {
+        self.task_handles.iter().for_each(|h| h.abort());
+        *self = Handle::open(port, br)?;
+        Ok(())
+    }
+
     pub fn is_connected(&self) -> bool {
         self.task_handles.iter().all(|h| !h.is_finished())
     }
@@ -70,7 +80,7 @@ async fn read_task(
     channel: UnboundedSender<String>,
     mut handle: ReadHalf<SerialStream>,
 ) -> Result<()> {
-    let mut buf = [0u8; 64];
+    let mut buf = [0u8; 256];
     while !channel.is_closed() {
         debug!("reading");
         let n_bytes = handle.read(&mut buf).await?;

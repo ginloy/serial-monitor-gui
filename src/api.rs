@@ -15,7 +15,9 @@ use crate::{
     ports,
 };
 
-pub static SCAN_FREQ: Duration = Duration::from_millis(20);
+pub const SCAN_FREQ: Duration = Duration::from_millis(500);
+pub const READ_FREQ: Duration = Duration::from_millis(20);
+pub const DEFAULT_BR: u32 = 9600;
 
 pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
     let mut interval = interval(SCAN_FREQ);
@@ -26,9 +28,9 @@ pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
 }
 
 pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
-    let mut interval = interval(SCAN_FREQ);
+    let mut interval = interval(READ_FREQ);
     info!("Reading from {:?}", connection.read().handle);
-    while connection.with(|c| c.is_connected()) {
+    while connection.with(|c| c.has_handle()) {
         interval.tick().await;
         let data = connection.write().read();
         match data {
@@ -39,7 +41,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
             }
             Err(e) => {
                 warn!("{:?}", e);
-                break;
+                // break;
             }
         }
     }
@@ -100,10 +102,14 @@ impl Connection {
 
     #[must_use]
     pub fn set_baud_rate(&mut self, rate: u32) -> handle::Result<()> {
-        self.handle = None;
+        if self.handle.is_none() {
+            self.baud_rate = rate;
+            return Ok(());
+        }
         self.baud_rate = rate;
-        let name = self.name.as_ref().unwrap().clone();
-        self.open(&name)?;
+        debug!("{}", self.baud_rate);
+        let name = self.name.as_ref().unwrap();
+        self.handle.as_mut().unwrap().reconnect(name, rate)?;
         Ok(())
     }
 
@@ -112,6 +118,10 @@ impl Connection {
             None => false,
             Some(ref handle) => handle.is_connected(),
         }
+    }
+
+    pub fn has_handle(&self) -> bool {
+        self.handle.is_some()
     }
 
     pub fn write(&mut self, data: &str) -> handle::Result<()> {

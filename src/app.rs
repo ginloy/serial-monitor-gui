@@ -11,7 +11,7 @@ pub fn App(cx: Scope) -> Element {
     let connection = use_ref(cx, || Connection::new(9600));
     let user_buffer = use_ref(cx, || String::new());
     let port_buffer = use_ref(cx, || String::new());
-    // to_owned![available_ports];
+
     let _ = use_coroutine(cx, |_: UnboundedReceiver<()>| {
         to_owned!(available_ports);
         async move {

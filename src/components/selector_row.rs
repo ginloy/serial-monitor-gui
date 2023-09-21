@@ -62,7 +62,7 @@ fn Selector(
             class: "form-floating",
             select {
                 class: "form-select",
-                onchange: connect, //|evt| println!("{:?}", evt),
+                onchange: connect,
                 if available_ports.is_empty() {
                     rsx! { option { value: "none", "No ports detected" } }
                 } else {
@@ -82,19 +82,22 @@ fn Selector(
 
 #[inline_props]
 fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
-    let inp = connection.with(|c| c.get_baud_rate().to_string());
-    let set_br = |s: &str| match str::parse::<u32>(s) {
-        Ok(x) => match connection.with_mut(|c| c.set_baud_rate(x)) {
-            Ok(_) => {
-                info!("Baud rate set to {x}");
+    let inp = use_state(cx, || format!("{}", api::DEFAULT_BR));
+    let set_br = |s: &str| {
+        inp.set(s.to_string());
+        match str::parse::<u32>(s) {
+            Ok(x) => match connection.with_mut(|c| c.set_baud_rate(x)) {
+                Ok(_) => {
+                    info!("Baud rate set to {x}");
+                }
+                Err(e) => {
+                    error!("Failed to set baud_rate to {x} due to {e}");
+                }
+            },
+            Err(_) => {
+                warn!("Not a valid number");
             }
-            Err(e) => {
-                error!("{:?}", e);
-            }
-        },
-        Err(e) => {
-            warn!("{:?}", e);
-        }
+        };
     };
     render! {
         div {
