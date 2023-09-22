@@ -1,5 +1,8 @@
 use dioxus::prelude::*;
 use tokio_serial::UsbPortInfo;
+use fermi::*;
+
+static TEST: AtomRef<usize> = AtomRef(|_| 1);
 
 use crate::{
     api::{self, Connection, DEFAULT_BR},
@@ -7,6 +10,9 @@ use crate::{
 };
 
 pub fn App(cx: Scope) -> Element {
+    let test = use_atom_ref(cx, &TEST);
+    
+    
     let available_ports = use_state(cx, || Vec::<(String, UsbPortInfo)>::new());
     let connection = use_ref(cx, || Connection::new(DEFAULT_BR));
     let user_buffer = use_ref(cx, || String::new());
