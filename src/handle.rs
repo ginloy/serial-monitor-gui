@@ -1,8 +1,8 @@
 use log::*;
 
-use std::io::{Error, ErrorKind::BrokenPipe, ErrorKind::InvalidData};
+use std::io::{Error, ErrorKind::BrokenPipe};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf},
     sync::mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
@@ -76,19 +76,18 @@ impl Drop for Handle {
 #[must_use]
 async fn read_task(
     channel: UnboundedSender<String>,
-    mut handle: ReadHalf<SerialStream>,
+    handle: ReadHalf<SerialStream>,
 ) -> Result<()> {
-    let mut buf = [0u8; 256];
+    let mut buf = String::new();
+    let mut reader = BufReader::new(handle);
     while !channel.is_closed() {
         debug!("reading");
-        let n_bytes = handle.read(&mut buf).await?;
-        std::str::from_utf8(&buf[..n_bytes])
-            .map_err(|e| Error::new(InvalidData, e))
-            .and_then(|s| {
-                channel
-                    .send(s.to_string())
-                    .map_err(|e| Error::new(BrokenPipe, e))
-            })?;
+        let n = reader.read_line(&mut buf).await?;
+        if n == 0 {
+            break;
+        }
+        channel.send(buf.clone()).map_err(|e| Error::new(BrokenPipe, e))?;
+        buf.clear();
     }
     info!("Read task ended");
     Ok(())
