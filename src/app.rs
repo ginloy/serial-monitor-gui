@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use tokio_serial::UsbPortInfo;
 
 use crate::{
     api::{self, Connection, DEFAULT_BR},

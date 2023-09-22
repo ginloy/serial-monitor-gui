@@ -8,7 +8,6 @@ use dirs::download_dir;
 use log::*;
 use rfd::{AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageLevel};
 use tokio::time::{interval, Duration};
-use tokio_serial::UsbPortInfo;
 
 use crate::{
     handle::{self, Handle},

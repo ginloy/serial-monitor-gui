@@ -7,9 +7,6 @@ pub fn get_available_usb() -> Vec<PortInfo> {
         Ok(ports) => {
             for p in ports {
                 debug!("{:?}", p);
-                // if let SerialPortType::UsbPort(info) = p.port_type {
-                //     res.push((p.port_name, info))
-                // }
                 let name = p.port_name;
                 let (manufacturer, product) = {
                     if let SerialPortType::UsbPort(info) = p.port_type {
