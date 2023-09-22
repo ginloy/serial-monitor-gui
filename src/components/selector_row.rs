@@ -1,13 +1,15 @@
 use dioxus::prelude::*;
 use log::*;
-use tokio_serial::UsbPortInfo;
 
-use crate::api::{self, Connection};
+use crate::{
+    api::{self, Connection},
+    ports::PortInfo,
+};
 
 #[inline_props]
 pub fn SelectorRow(
     cx: Scope,
-    available_ports: UseState<Vec<(String, UsbPortInfo)>>,
+    available_ports: UseState<Vec<PortInfo>>,
     connection: UseRef<Connection>,
     buffer: UseRef<Vec<String>>,
 ) -> Element {
@@ -33,7 +35,7 @@ pub fn SelectorRow(
 #[inline_props]
 fn Selector(
     cx: Scope,
-    available_ports: UseState<Vec<(String, UsbPortInfo)>>,
+    available_ports: UseState<Vec<PortInfo>>,
     connection: UseRef<Connection>,
     buffer: UseRef<Vec<String>>,
 ) -> Element {
@@ -68,9 +70,9 @@ fn Selector(
                 } else {
                     rsx! { option { value: "none" ,"Select port" } }
                 }
-                available_ports.iter().map(|(x, inf)| rsx!{ option {
-                    value: "{x}",
-                    format!("{}\t|\t{}\t|\t{}", x, inf.manufacturer.clone().unwrap_or(String::new()), inf.product.clone().unwrap_or(String::new()))
+                available_ports.iter().map(|inf| rsx!{ option {
+                    value: inf.name(),
+                    format!("{}\t|\t{}\t|\t{}", inf.name(), inf.manufacturer(), inf.product())
                 }})
             },
             label {

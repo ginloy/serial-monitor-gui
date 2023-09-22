@@ -1,7 +1,11 @@
 use dioxus::prelude::*;
 
 #[inline_props]
-pub fn Consoles(cx: Scope, port_buffer: UseRef<Vec<String>>, user_buffer: UseRef<Vec<String>>) -> Element {
+pub fn Consoles(
+    cx: Scope,
+    port_buffer: UseRef<Vec<String>>,
+    user_buffer: UseRef<Vec<String>>,
+) -> Element {
     render! {
         div {
             class: "row g-2 h-100",

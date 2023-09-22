@@ -9,15 +9,15 @@ use crate::api::{self, Connection};
 #[inline_props]
 pub fn InputBox(
     cx: Scope,
-    user_buffer: UseRef<String>,
-    port_buffer: UseRef<String>,
+    user_buffer: UseRef<Vec<String>>,
+    port_buffer: UseRef<Vec<String>>,
     connection: UseRef<Connection>,
 ) -> Element {
     let inp = use_state(cx, || String::new());
 
     let write = |s: &str| {
         let s = format!("{s}\n");
-        user_buffer.with_mut(|b| b.push_str(&s));
+        user_buffer.with_mut(|b| b.push(s.clone()));
         cx.spawn({
             to_owned![connection];
             async move {
@@ -70,8 +70,8 @@ pub fn InputBox(
 #[inline_props]
 fn DownloadButton(
     cx: Scope,
-    user_buffer: UseRef<String>,
-    port_buffer: UseRef<String>,
+    user_buffer: UseRef<Vec<String>>,
+    port_buffer: UseRef<Vec<String>>,
     titles: Vec<String>,
 ) -> Element {
     let is_downloading = use_state(cx, || false);
