@@ -21,10 +21,8 @@ pub fn App(cx: Scope) -> Element {
     render! {
         head {
             link {
-                href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css",
+                href: "../assets/css/bootstrap.css",
                 rel: "stylesheet",
-                integrity: "sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9",
-                crossorigin:"anonymous"
             }
         }
         body {
