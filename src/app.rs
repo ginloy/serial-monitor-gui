@@ -2,13 +2,13 @@ use dioxus::prelude::*;
 use tokio_serial::UsbPortInfo;
 
 use crate::{
-    api::{self, Connection},
+    api::{self, Connection, DEFAULT_BR},
     components::{consoles::Consoles, input_box::InputBox, selector_row::SelectorRow},
 };
 
 pub fn App(cx: Scope) -> Element {
     let available_ports = use_state(cx, || Vec::<(String, UsbPortInfo)>::new());
-    let connection = use_ref(cx, || Connection::new(9600));
+    let connection = use_ref(cx, || Connection::new(DEFAULT_BR));
     let user_buffer = use_ref(cx, || String::new());
     let port_buffer = use_ref(cx, || String::new());
 
@@ -21,10 +21,8 @@ pub fn App(cx: Scope) -> Element {
     render! {
         head {
             link {
-                href: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css",
+                href: "../assets/css/bootstrap.css",
                 rel: "stylesheet",
-                integrity: "sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9",
-                crossorigin:"anonymous"
             }
         }
         body {
