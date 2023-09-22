@@ -27,7 +27,7 @@ pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
     }
 }
 
-pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
+pub async fn read(connection: UseRef<Connection>, buffer: UseRef<Vec<String>>) {
     let mut interval = interval(READ_FREQ);
     info!("Reading from {:?}", connection.read().handle);
     while connection.with(|c| c.has_handle()) {
@@ -36,7 +36,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
         match data {
             Ok(x) => {
                 if !x.is_empty() {
-                    buffer.with_mut(|b| b.push_str(&x));
+                    buffer.with_mut(|b| b.push(x));
                 }
             }
             Err(e) => {

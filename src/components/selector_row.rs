@@ -9,7 +9,7 @@ pub fn SelectorRow(
     cx: Scope,
     available_ports: UseState<Vec<(String, UsbPortInfo)>>,
     connection: UseRef<Connection>,
-    buffer: UseRef<String>,
+    buffer: UseRef<Vec<String>>,
 ) -> Element {
     render! {
         div {
@@ -35,7 +35,7 @@ fn Selector(
     cx: Scope,
     available_ports: UseState<Vec<(String, UsbPortInfo)>>,
     connection: UseRef<Connection>,
-    buffer: UseRef<String>,
+    buffer: UseRef<Vec<String>>,
 ) -> Element {
     let prev_task: &UseState<Option<TaskId>> = use_state(cx, || None);
     let connect = move |e: Event<FormData>| {
