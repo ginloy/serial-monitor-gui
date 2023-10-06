@@ -16,4 +16,7 @@ env_logger = "0.10.0"
 tokio-serial = "5.4.4"
 dirs = "5.0.1"
 csv = "1.2.2"
+anyhow = "1.0.75"
+serde = "1.0.188"
+serde_yaml = "0.9.25"
 
