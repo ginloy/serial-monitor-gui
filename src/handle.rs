@@ -74,10 +74,7 @@ impl Drop for Handle {
 }
 
 #[must_use]
-async fn read_task(
-    channel: UnboundedSender<String>,
-    handle: ReadHalf<SerialStream>,
-) -> Result<()> {
+async fn read_task(channel: UnboundedSender<String>, handle: ReadHalf<SerialStream>) -> Result<()> {
     let mut buf = String::new();
     let mut reader = BufReader::new(handle);
     while !channel.is_closed() {
@@ -86,7 +83,9 @@ async fn read_task(
         if n == 0 {
             break;
         }
-        channel.send(buf.clone()).map_err(|e| Error::new(BrokenPipe, e))?;
+        channel
+            .send(buf.clone())
+            .map_err(|e| Error::new(BrokenPipe, e))?;
         buf.clear();
     }
     info!("Read task ended");

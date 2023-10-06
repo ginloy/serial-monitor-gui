@@ -8,18 +8,17 @@ use dirs::download_dir;
 use log::*;
 use rfd::{AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageLevel};
 use tokio::time::{interval, Duration};
-use tokio_serial::UsbPortInfo;
 
 use crate::{
     handle::{self, Handle},
-    ports,
+    ports::{self, PortInfo},
 };
 
 pub const SCAN_FREQ: Duration = Duration::from_millis(500);
 pub const READ_FREQ: Duration = Duration::from_millis(20);
 pub const DEFAULT_BR: u32 = 9600;
 
-pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
+pub async fn scan_ports(buffer: UseState<Vec<PortInfo>>) {
     let mut interval = interval(SCAN_FREQ);
     loop {
         interval.tick().await;
@@ -27,7 +26,7 @@ pub async fn scan_ports(buffer: UseState<Vec<(String, UsbPortInfo)>>) {
     }
 }
 
-pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
+pub async fn read(connection: UseRef<Connection>, buffer: UseRef<Vec<String>>) {
     let mut interval = interval(READ_FREQ);
     info!("Reading from {:?}", connection.read().handle);
     while connection.with(|c| c.has_handle()) {
@@ -36,7 +35,7 @@ pub async fn read(connection: UseRef<Connection>, buffer: UseRef<String>) {
         match data {
             Ok(x) => {
                 if !x.is_empty() {
-                    buffer.with_mut(|b| b.push_str(&x));
+                    buffer.with_mut(|b| b.push(x));
                 }
             }
             Err(e) => {
@@ -114,7 +113,10 @@ impl Connection {
     }
 
     pub fn is_connected(&self) -> bool {
-        self.handle.as_ref().map(|h| h.is_connected()).unwrap_or(false)
+        self.handle
+            .as_ref()
+            .map(|h| h.is_connected())
+            .unwrap_or(false)
     }
 
     pub fn has_handle(&self) -> bool {
@@ -136,15 +138,11 @@ impl Connection {
     }
 }
 
-fn process_data(titles: Vec<String>, content: Vec<String>) -> Vec<Vec<String>> {
+fn process_data(titles: Vec<String>, content: Vec<Vec<String>>) -> Vec<Vec<String>> {
     let mut res = Vec::new();
     res.push(titles);
-    let mat: Vec<Vec<_>> = content
-        .into_iter()
-        .map(|s| s.lines().map(|s| s.to_string()).collect())
-        .collect();
-    let num_cols = mat.iter().map(|r| r.len()).max().unwrap();
-    let mut row_iters: Vec<_> = mat.into_iter().map(|r| r.into_iter()).collect();
+    let num_cols = content.iter().map(|r| r.len()).max().unwrap();
+    let mut row_iters: Vec<_> = content.into_iter().map(|r| r.into_iter()).collect();
     (0..num_cols)
         .map(|_| {
             row_iters
@@ -163,7 +161,7 @@ fn download_csv(data: Vec<Vec<String>>, path: PathBuf) -> csv::Result<()> {
 
 fn start_process_data(
     titles: Vec<String>,
-    content: Vec<String>,
+    content: Vec<Vec<String>>,
 ) -> std::thread::JoinHandle<Vec<Vec<String>>> {
     std::thread::spawn(move || process_data(titles, content))
 }
@@ -175,7 +173,7 @@ fn start_download_csv(
     std::thread::spawn(move || download_csv(data, path))
 }
 
-pub async fn download(titles: Vec<String>, content: Vec<String>) {
+pub async fn download(titles: Vec<String>, content: Vec<Vec<String>>) {
     let handle = start_process_data(titles, content);
     let mut check_interval = interval(SCAN_FREQ);
     while !handle.is_finished() {

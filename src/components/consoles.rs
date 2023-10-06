@@ -1,7 +1,11 @@
 use dioxus::prelude::*;
 
 #[inline_props]
-pub fn Consoles(cx: Scope, port_buffer: UseRef<String>, user_buffer: UseRef<String>) -> Element {
+pub fn Consoles(
+    cx: Scope,
+    port_buffer: UseRef<Vec<String>>,
+    user_buffer: UseRef<Vec<String>>,
+) -> Element {
     render! {
         div {
             class: "row g-2 h-100",
@@ -18,7 +22,7 @@ pub fn Consoles(cx: Scope, port_buffer: UseRef<String>, user_buffer: UseRef<Stri
 }
 
 #[inline_props]
-fn Console(cx: Scope, id: usize, buffer: UseRef<String>) -> Element {
+fn Console(cx: Scope, id: usize, buffer: UseRef<Vec<String>>) -> Element {
     let element_id = format!("console_{id}");
     let eval = use_eval(cx).clone();
     let script = format!(
@@ -34,7 +38,7 @@ fn Console(cx: Scope, id: usize, buffer: UseRef<String>) -> Element {
         eval(script.as_ref()).unwrap();
     });
 
-    let content = buffer.read();
+    let content = buffer.read().iter().cloned().collect::<String>();
 
     render! {
         div {

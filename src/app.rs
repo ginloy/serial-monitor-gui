@@ -1,16 +1,16 @@
 use dioxus::prelude::*;
-use tokio_serial::UsbPortInfo;
 
 use crate::{
     api::{self, Connection, DEFAULT_BR},
     components::{consoles::Consoles, input_box::InputBox, selector_row::SelectorRow},
+    ports::PortInfo,
 };
 
 pub fn App(cx: Scope) -> Element {
-    let available_ports = use_state(cx, || Vec::<(String, UsbPortInfo)>::new());
+    let available_ports = use_state(cx, || Vec::<PortInfo>::new());
     let connection = use_ref(cx, || Connection::new(DEFAULT_BR));
-    let user_buffer = use_ref(cx, || String::new());
-    let port_buffer = use_ref(cx, || String::new());
+    let user_buffer = use_ref(cx, || Vec::<String>::new());
+    let port_buffer = use_ref(cx, || Vec::<String>::new());
 
     let _ = use_coroutine(cx, |_: UnboundedReceiver<()>| {
         to_owned!(available_ports);
