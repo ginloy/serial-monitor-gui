@@ -30,12 +30,12 @@ pub fn InputBox(
 
     render! {
         div {
-            class: "d-flex gap-2",
+            class: "flex flex-row gap-2",
             div {
-                class: "input-group",
+                class: "join flex-1",
                 input {
                     value: "{inp}",
-                    class: "form-control bg-gradient",
+                    class: "input input-bordered w-full join-item",
                     spellcheck: "false",
                     oninput: move |event| {
                        inp.set(event.value.clone());
@@ -48,7 +48,7 @@ pub fn InputBox(
                     }
                 }
                 button {
-                    class: "btn btn-primary bg-gradient",
+                    class: "btn btn-primary join-item",
                     onclick: move |_| {
                         if !inp.is_empty() {
                             write(&inp);
@@ -91,7 +91,7 @@ fn DownloadButton(
         if !*is_downloading.get() {
             rsx! {
                 button {
-                    class: "btn btn-primary bg-gradient",
+                    class: "btn btn-primary",
                     onclick: trigger_download,
                     "Download"
                 }
@@ -99,10 +99,10 @@ fn DownloadButton(
         } else {
             rsx! {
                 button {
-                    class: "btn btn-primary d-flex align-items-center gap-1",
+                    class: "btn btn-primary btn-bordered",
                     disabled: true,
-                    div {
-                        class: "spinner-border spinner-border-sm",
+                    span {
+                        class: "loading loading-spinner",
                     },
                     div { "Downloading..." },
                 }

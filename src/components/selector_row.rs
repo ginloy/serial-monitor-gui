@@ -15,19 +15,9 @@ pub fn SelectorRow(
 ) -> Element {
     render! {
         div {
-            class: "row g-2",
-            div {
-                class: "col-12 col-sm-8",
+            class: "flex flex-row gap-2 items-center",
                 Selector { available_ports: available_ports.clone(), connection: connection.clone(), buffer: buffer.clone() }
-            },
-            div {
-                class: "col-10 col-sm-3",
                 BaudSelector { connection: connection.clone() }
-            }
-            div {
-                class: "col-2 col-sm-1 d-flex justify-content-center align-items-center",
-                ConnectionIndicator { connection: connection.clone() }
-            }
         }
     }
 }
@@ -61,9 +51,10 @@ fn Selector(
 
     render! {
         div {
-            class: "form-floating",
+            class: "indicator flex-1",
+            span { class:"indicator-item indicator-start", ConnectionIndicator{ connection: connection.clone() } },
             select {
-                class: "form-select",
+                class: "select select-bordered w-full",
                 onchange: connect,
                 if available_ports.is_empty() {
                     rsx! { option { value: "none", "No ports detected" } }
@@ -74,9 +65,6 @@ fn Selector(
                     value: inf.name(),
                     format!("{}\t|\t{}\t|\t{}", inf.name(), inf.manufacturer(), inf.product())
                 }})
-            },
-            label {
-                "Port"
             },
         }
     }
@@ -102,11 +90,9 @@ fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
         };
     };
     render! {
-        div {
-            class: "form-floating",
             input {
                 value: "{inp}",
-                class: "form-control",
+                class: "input input-bordered",
                 r#type: "number",
                 min: "0",
                 max: "200000",
@@ -116,11 +102,7 @@ fn BaudSelector(cx: Scope, connection: UseRef<Connection>) -> Element {
                     set_br(&event.value);
                 }
             },
-            label {
-                "Baud Rate"
-            },
         }
-    }
 }
 
 #[inline_props]
@@ -141,7 +123,7 @@ fn ConnectionIndicator(cx: Scope, connection: UseRef<Connection>) -> Element {
 fn ConnectingSpinner(cx: Scope) -> Element {
     render! {
         div {
-            class: "spinner-border text-primary",
+            class: "loading loading-spinner loading-xs",
             role: "status",
         }
     }
@@ -150,9 +132,8 @@ fn ConnectingSpinner(cx: Scope) -> Element {
 fn ConnectedSpinner(cx: Scope) -> Element {
     render! {
         div {
-            class: "spinner-grow text-success bg-gradient",
+            class: "badge badge-success badge-xs",
             role: "status",
-            style: "animation-duration: 2s;"
         }
     }
 }

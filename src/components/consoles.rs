@@ -8,15 +8,9 @@ pub fn Consoles(
 ) -> Element {
     render! {
         div {
-            class: "row g-2 h-100",
-            div {
-                class: "col-12 col-md",
-                Console { id: 0, buffer: user_buffer.clone() }
-            },
-            div {
-                class: "col-12 col-md",
-                Console { id: 1, buffer: port_buffer.clone() }
-            },
+            class: "flex flex-row gap-2 flex-1",
+            Console { id: 0, buffer: user_buffer.clone() }
+            Console { id: 1, buffer: port_buffer.clone() }
         }
     }
 }
@@ -42,18 +36,16 @@ fn Console(cx: Scope, id: usize, buffer: UseRef<Vec<String>>) -> Element {
 
     render! {
         div {
-            class: "h-100 position-relative",
+            class: "relative flex-1",
             textarea {
                 id: "{element_id}",
-                class: "form-control w-100 h-100",
-                font_size: "0.875rem",
+                class: "textarea bg-base-200 w-full h-full text-sm",
                 readonly: true,
                 resize: "none",
                 "{content}"
             }
             button {
-                class: "btn btn-outline-danger position-absolute",
-                font_size: "0.9rem",
+                class: "btn btn-error absolute btn-outline text-sm",
                 top: "10px",
                 right: "10px",
                 onclick: move |_| {

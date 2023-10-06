@@ -19,46 +19,17 @@ pub fn App(cx: Scope) -> Element {
         }
     });
     render! {
-        head {
-            link {
-                href: "../assets/css/bootstrap.css",
-                rel: "stylesheet",
-            }
-        }
+        style { include_str!("../output.css") },
         body {
-            "data-bs-theme" : "dark",
-            script {
-                src: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js",
-                integrity: "sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm",
-                crossorigin: "anonymous"
-            }
+            "data-theme" : "synthwave",
             div {
-                class: "vh-100 container-fluid d-flex flex-column",
-                div {
-                    class: "row pt-2",
-                    div {
-                        class: "col",
-                        SelectorRow { available_ports: available_ports.clone(), connection: connection.clone(), buffer: port_buffer.clone() }
-                    },
-                }
-                div {
-                    class: "row flex-grow-1 pt-2",
-                    min_height: "1rem",
-                    div {
-                        class: "col",
-                        Consoles { port_buffer: port_buffer.clone(), user_buffer: user_buffer.clone() }
-                    }
-                }
-                div {
-                    class: "row pb-2",
-                    div {
-                        class: "col-md",
-                        InputBox {
-                            user_buffer: user_buffer.clone(),
-                            connection: connection.clone(),
-                            port_buffer: port_buffer.clone()
-                        }
-                    },
+                class: "h-screen flex flex-col gap-2 p-2",
+                SelectorRow { available_ports: available_ports.clone(), connection: connection.clone(), buffer: port_buffer.clone() }
+                Consoles { port_buffer: port_buffer.clone(), user_buffer: user_buffer.clone() }
+                InputBox {
+                    user_buffer: user_buffer.clone(),
+                    connection: connection.clone(),
+                    port_buffer: port_buffer.clone()
                 }
             }
         }
